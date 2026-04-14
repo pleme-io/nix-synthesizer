@@ -1,0 +1,20 @@
+[package]
+name = "nix-synthesizer"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89.0"
+description = "Typed AST for structurally correct Nix expression generation"
+license = "MIT"
+repository = "https://github.com/pleme-io/nix-synthesizer"
+
+[features]
+default = []
+iac-bridge = ["dep:iac-forge"]
+
+[dependencies]
+iac-forge = { git = "https://github.com/pleme-io/iac-forge", optional = true }
+
+[dev-dependencies]
+proptest = "1"
+regex = "1"
+iac-forge = { git = "https://github.com/pleme-io/iac-forge" }
