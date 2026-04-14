@@ -1,16 +1,18 @@
 # nix-synthesizer
 
-Typed AST for structurally correct Nix expression generation. Generates flake.nix, NixOS modules, home-manager modules, devShells, substrate builder invocations.
+Typed AST for structurally correct Nix expression generation. Flake.nix, NixOS modules, home-manager modules, devShells, substrate builder invocations.
 
-## Tests: 240 | Status: Proven
+## Tests: 241 (with iac-bridge) | Status: Proven, Zero Raw in Production
 
 ## Core API
 
 | Type | Purpose |
 |------|---------|
-| `NixNode` | 25+ variants: Comment, Blank, Str, MultilineStr, Int, Bool, Null, Path, Ident, Select, SelectOr, AttrSet, RecAttrSet, List, LetIn, With, Inherit, InheritFrom, Function, Lambda, Apply, If, BinOp, Interpolation, Import, MkOption, MkEnableOption, ModuleFile, FlakeFile, FlakeInput, Raw |
-| `NixType` | 16 variants: Str, Int, Float, Bool, Path, Package, Attrs, Anything, ListOf, AttrsOf, Enum, NullOr, Submodule, OneOf, Either, Raw |
+| `NixNode` | 26+ variants including TypeExpr for embedding NixType in ASTs |
+| `NixType` | 16 variants: Str, Int, Float, Bool, Path, Package, Attrs, Anything, ListOf, AttrsOf, Enum, NullOr, Submodule, OneOf, Either, Raw (deprecated) |
 | `emit_file(&[NixNode])` | Emit nodes as complete Nix file |
+
+`Raw` is **deprecated** on both NixNode and NixType. Use `TypeExpr` for type embeddings.
 
 ## Builders
 
@@ -23,13 +25,6 @@ Typed AST for structurally correct Nix expression generation. Generates flake.ni
 
 `iac_type_to_nix(ty: &IacType) -> NixType` — proven total, injective, deterministic.
 
-## Type Algebra
+## No-Raw Invariant
 
-- `NixType::null_or()` — idempotent
-- `NixType::one_of()` — 1 variant degenerates, 2 → Either, 3+ → OneOf
-- All base types emit distinctly (injectivity proven)
-
-## Dependencies
-
-- iac-forge (optional, feature: iac-bridge)
-- proptest, regex (dev)
+Test scans production source for NixNode::Raw and NixType::Raw constructors → assert zero.
