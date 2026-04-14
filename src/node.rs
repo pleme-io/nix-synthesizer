@@ -143,7 +143,8 @@ pub enum NixNode {
     },
 
     // ── Escape hatch ────────────────────────────────────────────────
-    /// Raw Nix expression (use sparingly)
+    /// Raw Nix expression — DEPRECATED: use a typed variant instead.
+    #[deprecated(note = "use a typed variant instead of Raw — Raw defeats provability")]
     Raw(String),
 }
 
@@ -621,6 +622,7 @@ impl NixNode {
             }
 
             // Escape hatch
+            #[allow(deprecated)]
             Self::Raw(s) => format!("{pad}{s}"),
         }
     }
