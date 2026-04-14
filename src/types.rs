@@ -141,7 +141,7 @@ impl NixType {
     /// Convert this type expression to a NixNode for embedding in ASTs.
     #[must_use]
     pub fn to_node(&self) -> NixNode {
-        NixNode::Raw(self.emit())
+        NixNode::TypeExpr(self.emit())
     }
 }
 
