@@ -2,17 +2,17 @@
 
 Typed AST for structurally correct Nix expression generation. Flake.nix, NixOS modules, home-manager modules, devShells, substrate builder invocations.
 
-## Tests: 241 (with iac-bridge) | Status: Proven, Zero Raw in Production
+## Status: Proven, Structurally No-Raw (Wave 3)
 
 ## Core API
 
 | Type | Purpose |
 |------|---------|
-| `NixNode` | 26+ variants including TypeExpr for embedding NixType in ASTs |
-| `NixType` | 16 variants: Str, Int, Float, Bool, Path, Package, Attrs, Anything, ListOf, AttrsOf, Enum, NullOr, Submodule, OneOf, Either, Raw (deprecated) |
+| `NixNode` | Typed Nix AST variants including TypeExpr for embedding NixType in ASTs |
+| `NixType` | 15 variants: Str, Int, Float, Bool, Path, Package, Attrs, Anything, ListOf, AttrsOf, Enum, NullOr, Submodule, OneOf, Either |
 | `emit_file(&[NixNode])` | Emit nodes as complete Nix file |
 
-`Raw` is **deprecated** on both NixNode and NixType. Use `TypeExpr` for type embeddings.
+Use `TypeExpr` for type embeddings. Raw variants were removed in Wave 3 of the compound-knowledge refactor — invalid states are unrepresentable at the type level.
 
 ## Builders
 
@@ -27,4 +27,4 @@ Typed AST for structurally correct Nix expression generation. Flake.nix, NixOS m
 
 ## No-Raw Invariant
 
-Test scans production source for NixNode::Raw and NixType::Raw constructors → assert zero.
+Structural: Raw variants do not exist on NixNode or NixType. The source-scan test in `tests/synthesizer_core_conformance.rs` is retained as a defensive guard against reintroduction.

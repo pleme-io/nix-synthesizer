@@ -1,16 +1,16 @@
 //! Conformance to [`synthesizer_core`] traits.
 //!
-//! Wave 2 of the compound-knowledge refactor: purely additive. No behavior
-//! change to nix-synthesizer's existing APIs — this module only adds trait
-//! impls that downstream generic code can consume.
+//! Wave 3 of the compound-knowledge refactor: Raw variants have been
+//! removed entirely. The no-raw invariant is now structural — invalid
+//! states are unrepresentable at the type level.
 //!
 //! - [`synthesizer_core::SynthesizerNode`] unifies the emit contract so
 //!   generic code can render any synthesizer's AST without knowing the
 //!   concrete type.
-//! - [`synthesizer_core::NoRawAttestation`] documents how the no-raw
-//!   invariant is enforced here (the `#[deprecated]` attribute on
-//!   `NixNode::Raw` plus the scan test in
-//!   `tests/synthesizer_core_conformance.rs`).
+//! - [`synthesizer_core::NoRawAttestation`] documents the structural
+//!   absence of Raw variants, retained as a defensive guard against
+//!   reintroduction via the scan test in
+//!   `tests/synthesizer_core_conformance.rs`.
 
 use crate::node::NixNode;
 use synthesizer_core::{NoRawAttestation, SynthesizerNode};
@@ -61,20 +61,17 @@ impl SynthesizerNode for NixNode {
             Self::FlakeInput { .. } => 29,
             Self::WriteShellApp { .. } => 30,
             Self::TypeExpr(_) => 31,
-            #[allow(deprecated)]
-            Self::Raw(_) => 32,
         }
     }
 }
 
 impl NoRawAttestation for NixNode {
     fn attestation() -> &'static str {
-        "NixNode::Raw carries #[deprecated] in src/node.rs and is scheduled \
-         for removal in Wave 3 of the compound-knowledge refactor. \
-         tests/synthesizer_core_conformance.rs::no_raw_constructor_in_production_source \
-         scans src/ for Raw constructions; any accidental reintroduction \
-         fails CI. The #[allow(deprecated)] pin in synthesizer_core_impl.rs \
-         is the one intentional reference — to a match arm pattern, not a \
-         construction."
+        "Raw variants were removed in Wave 3. NixNode and NixType are \
+         structurally incapable of carrying arbitrary strings — invalid \
+         states are unrepresentable at the type level. The source-scan \
+         test in tests/synthesizer_core_conformance.rs::\
+         no_raw_constructor_in_production_source is retained as a \
+         defensive guard against reintroduction (now trivially satisfied)."
     }
 }

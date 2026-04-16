@@ -156,10 +156,6 @@ pub enum NixNode {
     // ── Escape hatch ────────────────────────────────────────────────
     /// Type expression embedded in an AST — typed bridge from NixType.
     TypeExpr(String),
-
-    /// Raw Nix expression — DEPRECATED: use a typed variant instead.
-    #[deprecated(note = "use a typed variant instead of Raw — Raw defeats provability")]
-    Raw(String),
 }
 
 /// A single `key = value;` binding in an attribute set or let block.
@@ -684,8 +680,6 @@ impl NixNode {
 
             // Escape hatch
             Self::TypeExpr(s) => format!("{pad}{s}"),
-            #[allow(deprecated)]
-            Self::Raw(s) => format!("{pad}{s}"),
         }
     }
 }

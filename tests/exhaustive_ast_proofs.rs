@@ -384,12 +384,6 @@ fn flake_input_with_follows() {
     assert!(out.contains("github:pleme-io/substrate"));
 }
 
-#[test]
-fn raw_emits_verbatim() {
-    let out = NixNode::Raw("builtins.fetchTarball { }".into()).emit(0);
-    assert_eq!(out, "builtins.fetchTarball { }");
-}
-
 // ── String escaping proofs ──────────────────────────────────────────
 
 #[test]
@@ -570,10 +564,4 @@ fn type_submodule_with_options() {
 fn type_submodule_empty() {
     let ty = NixType::Submodule(vec![]);
     assert_eq!(ty.emit(), "types.submodule { }");
-}
-
-#[test]
-fn type_raw() {
-    let ty = NixType::Raw("types.functionTo types.str".into());
-    assert_eq!(ty.emit(), "types.functionTo types.str");
 }

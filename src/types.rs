@@ -37,8 +37,6 @@ pub enum NixType {
     OneOf(Vec<NixType>),
     /// `types.either a b`
     Either(Box<NixType>, Box<NixType>),
-    /// Raw type expression (escape hatch)
-    Raw(String),
 }
 
 /// An option within a submodule type.
@@ -134,7 +132,6 @@ impl NixType {
                 lines.push("}".to_string());
                 lines.join("\n")
             }
-            Self::Raw(expr) => expr.clone(),
         }
     }
 
@@ -275,9 +272,4 @@ mod tests {
         assert!(out.contains("8080"));
     }
 
-    #[test]
-    fn raw_emits_verbatim() {
-        let ty = NixType::Raw("types.functionTo types.str".into());
-        assert_eq!(ty.emit(), "types.functionTo types.str");
-    }
 }
