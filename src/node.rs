@@ -142,6 +142,17 @@ pub enum NixNode {
         follows: Vec<(String, String)>,
     },
 
+    // ── Substrate / nixpkgs domain-specific nodes ───────────────────
+    /// `pkgs.writeShellApplication { name; runtimeInputs; text; }` —
+    /// the canonical wrapper for emitting a typed shell script as a Nix
+    /// package. `runtime_inputs` are package identifiers (emitted as
+    /// `pkgs.${ident}`). `text` is opaque shell (shell has no AST here).
+    WriteShellApp {
+        name: String,
+        runtime_inputs: Vec<String>,
+        text: String,
+    },
+
     // ── Escape hatch ────────────────────────────────────────────────
     /// Type expression embedded in an AST — typed bridge from NixType.
     TypeExpr(String),
@@ -627,6 +638,50 @@ impl NixNode {
                 emit_binding(indent, &b)
             }
 
+            // pkgs.writeShellApplication — typed shell wrapper.
+            //
+            // Nix `''...''` multi-line strings interpret `${...}` as interpolation,
+            // so shell uses of `${VAR}` (which are common) must be escaped as
+            // `''${VAR}`. We escape that at emit time so callers pass natural
+            // shell syntax.
+            Self::WriteShellApp { name, runtime_inputs, text } => {
+                let inner_pad = "  ".repeat(indent + 1);
+                let inputs_list = if runtime_inputs.is_empty() {
+                    "[ ]".to_string()
+                } else {
+                    let items = runtime_inputs
+                        .iter()
+                        .map(|i| format!("pkgs.{i}"))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    format!("[ {items} ]")
+                };
+                // Escape shell-style ${...} for Nix multi-line string context.
+                // (Shell `$VAR` stays as-is; only `${...}` needs the `''` prefix.)
+                let escaped_text = text.replace("${", "''${");
+                let text_inner_pad = "  ".repeat(indent + 2);
+                let text_body = escaped_text
+                    .lines()
+                    .map(|l| {
+                        if l.is_empty() {
+                            String::new()
+                        } else {
+                            format!("{text_inner_pad}{l}")
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                format!(
+                    "{pad}pkgs.writeShellApplication {{\n\
+                     {inner_pad}name = \"{name}\";\n\
+                     {inner_pad}runtimeInputs = {inputs_list};\n\
+                     {inner_pad}text = ''\n\
+                     {text_body}\n\
+                     {inner_pad}'';\n\
+                     {pad}}}"
+                )
+            }
+
             // Escape hatch
             Self::TypeExpr(s) => format!("{pad}{s}"),
             #[allow(deprecated)]
@@ -986,5 +1041,101 @@ mod tests {
         };
         let out = node.emit(0);
         assert!(out.contains("(let"), "let-in arg must be parenthesized: {out}");
+    }
+
+    // ── WriteShellApp — pkgs.writeShellApplication wrapper ──────────────
+
+    #[test]
+    fn write_shell_app_emits_canonical_shape() {
+        let node = NixNode::WriteShellApp {
+            name: "foo".into(),
+            runtime_inputs: vec!["bash".into(), "jq".into()],
+            text: "echo hi".into(),
+        };
+        let out = node.emit(0);
+        assert!(out.contains("pkgs.writeShellApplication {"));
+        assert!(out.contains("name = \"foo\";"));
+        assert!(out.contains("runtimeInputs = [ pkgs.bash pkgs.jq ];"));
+        assert!(out.contains("text = ''"));
+        assert!(out.contains("echo hi"));
+        assert!(out.contains("'';"));
+    }
+
+    #[test]
+    fn write_shell_app_empty_runtime_inputs() {
+        let node = NixNode::WriteShellApp {
+            name: "bare".into(),
+            runtime_inputs: vec![],
+            text: "true".into(),
+        };
+        let out = node.emit(0);
+        assert!(out.contains("runtimeInputs = [ ];"));
+    }
+
+    #[test]
+    fn write_shell_app_escapes_dollar_brace_for_nix() {
+        // Shell-style `${VAR}` must be escaped to `''${VAR}` inside `''..''`
+        // so Nix doesn't treat it as a Nix interpolation.
+        let node = NixNode::WriteShellApp {
+            name: "needs-escape".into(),
+            runtime_inputs: vec![],
+            text: "echo \"${HOME}\"".into(),
+        };
+        let out = node.emit(0);
+        assert!(
+            out.contains("''${HOME}"),
+            "shell ${{VAR}} must be escaped as ''${{VAR}} — got: {out}"
+        );
+    }
+
+    #[test]
+    fn write_shell_app_preserves_bare_dollar_vars() {
+        // `$VAR` (no braces) is fine as-is; no escape needed.
+        let node = NixNode::WriteShellApp {
+            name: "bare-dollar".into(),
+            runtime_inputs: vec![],
+            text: "echo \"$HOME\"".into(),
+        };
+        let out = node.emit(0);
+        assert!(out.contains("echo \"$HOME\""));
+    }
+
+    #[test]
+    fn write_shell_app_multiline_body_indented() {
+        let node = NixNode::WriteShellApp {
+            name: "multi".into(),
+            runtime_inputs: vec![],
+            text: "line1\nline2\nline3".into(),
+        };
+        let out = node.emit(0);
+        // Each non-empty shell line is indented within the text block
+        assert!(out.contains("line1"));
+        assert!(out.contains("line2"));
+        assert!(out.contains("line3"));
+    }
+
+    #[test]
+    fn write_shell_app_emit_is_deterministic() {
+        let node = NixNode::WriteShellApp {
+            name: "det".into(),
+            runtime_inputs: vec!["ruby".into(), "bundler".into()],
+            text: "echo deterministic".into(),
+        };
+        assert_eq!(node.emit(0), node.emit(0));
+    }
+
+    #[test]
+    fn write_shell_app_nests_in_attr_set() {
+        let node = NixNode::AttrSet(vec![Binding::new(
+            "program",
+            NixNode::WriteShellApp {
+                name: "nested".into(),
+                runtime_inputs: vec!["coreutils".into()],
+                text: "echo nested".into(),
+            },
+        )]);
+        let out = node.emit(0);
+        assert!(out.contains("program ="));
+        assert!(out.contains("pkgs.writeShellApplication"));
     }
 }
