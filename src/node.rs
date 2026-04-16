@@ -597,7 +597,10 @@ impl NixNode {
                     if !input.follows.is_empty() {
                         let mut follows_bindings = Vec::new();
                         for (name, target) in &input.follows {
-                            follows_bindings.push(Binding::new(name, NixNode::Str(target.clone())));
+                            // nixpkgs.follows = "nixpkgs" (not nixpkgs = "nixpkgs")
+                            follows_bindings.push(Binding::new(name,
+                                NixNode::AttrSet(vec![Binding::new("follows", NixNode::Str(target.clone()))])
+                            ));
                         }
                         ib.push(Binding::new("inputs", NixNode::AttrSet(follows_bindings)));
                     }
@@ -959,6 +962,17 @@ mod tests {
             arg: Box::new(NixNode::Int(42)),
         };
         assert_eq!(node.emit(0), "f 42");
+    }
+
+    #[test]
+    fn flake_follows_produces_nested_attr() {
+        // substrate.inputs.nixpkgs.follows = "nixpkgs" (NOT nixpkgs = "nixpkgs")
+        let flake = crate::builders::FlakeBuilder::new("test")
+            .input_with_follows("substrate", "github:pleme-io/substrate", vec![("nixpkgs", "nixpkgs")])
+            .outputs(NixNode::ident("{}"))
+            .emit();
+        assert!(flake.contains("follows = \"nixpkgs\""), "follows must be nested: {flake}");
+        assert!(!flake.contains("nixpkgs = \"nixpkgs\""), "must NOT be flat string assignment");
     }
 
     #[test]
