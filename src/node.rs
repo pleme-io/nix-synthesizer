@@ -698,6 +698,8 @@ fn needs_parens(node: &NixNode) -> bool {
             | NixNode::If { .. }
             | NixNode::LetIn { .. }
             | NixNode::With { .. }
+            | NixNode::Lambda { .. }
+            | NixNode::Function { .. }
     )
 }
 
@@ -915,5 +917,60 @@ mod tests {
         } else {
             panic!("expected AttrSet");
         }
+    }
+
+    // ── Regression: Lambda/Function parenthesization ─────────
+
+    #[test]
+    fn lambda_as_apply_arg_gets_parens() {
+        // flake-utils.lib.eachDefaultSystem (system: ...)
+        // Without parens: `eachDefaultSystem system: ...` is a syntax error
+        let node = NixNode::Apply {
+            func: Box::new(NixNode::select(NixNode::ident("flake-utils"), &["lib", "eachDefaultSystem"])),
+            arg: Box::new(NixNode::Lambda {
+                arg: "system".into(),
+                body: Box::new(NixNode::attr_set(vec![("x", NixNode::Int(1))])),
+            }),
+        };
+        let out = node.emit(0);
+        assert!(out.contains("(system:"), "lambda arg must be parenthesized: {out}");
+    }
+
+    #[test]
+    fn function_as_apply_arg_gets_parens() {
+        // builtins.foldl' ({ acc, ws, ... }: acc // ws)
+        let node = NixNode::Apply {
+            func: Box::new(NixNode::ident("f")),
+            arg: Box::new(NixNode::Function {
+                args: vec![FnArg::required("x")],
+                variadic: false,
+                body: Box::new(NixNode::ident("x")),
+            }),
+        };
+        let out = node.emit(0);
+        assert!(out.contains("({ x }:"), "function arg must be parenthesized: {out}");
+    }
+
+    #[test]
+    fn simple_apply_no_extra_parens() {
+        // import ./path — no parens needed for simple args
+        let node = NixNode::Apply {
+            func: Box::new(NixNode::ident("f")),
+            arg: Box::new(NixNode::Int(42)),
+        };
+        assert_eq!(node.emit(0), "f 42");
+    }
+
+    #[test]
+    fn let_in_as_apply_arg_gets_parens() {
+        let node = NixNode::Apply {
+            func: Box::new(NixNode::ident("f")),
+            arg: Box::new(NixNode::let_in(
+                vec![("x", NixNode::Int(1))],
+                NixNode::ident("x"),
+            )),
+        };
+        let out = node.emit(0);
+        assert!(out.contains("(let"), "let-in arg must be parenthesized: {out}");
     }
 }
