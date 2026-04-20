@@ -70,6 +70,11 @@ fn nodes() -> Vec<Node> {
             .with_profiles(&["nixos-k3s-vm"])
             .with_managing_node("ryn"),
 
+        Node::new("rio", "rio.quero.lan", Target::X86_64_LINUX, NodeRole::K3sServer, "root")
+            .with_tags(&["home", "k3s", "server", "builder", "edge"])
+            .with_profiles(&["nixos-pleme-base", "nixos-k3s-server", "nixos-home-builder"])
+            .with_system_user("luis"),
+
         // ── Darwin fleet (from darwinConfigurations/default.nix) ───────
         Node::new("cid", "cid.local", Target::AARCH64_DARWIN, NodeRole::DarwinWorkstation, "drzzln")
             .with_tags(&["workstation", "darwin", "akeyless-org"])
@@ -105,6 +110,15 @@ fn profiles() -> Vec<Profile> {
         Profile::new("nixos-security-hardened", ProfileKind::NixOs, ProfileLayer::Standalone)
             .enabling(&["blackmatter-security"]),
         Profile::new("nixos-laptop-server", ProfileKind::NixOs, ProfileLayer::Standalone),
+        Profile::new("nixos-edge-router", ProfileKind::NixOs, ProfileLayer::Standalone),
+        Profile::new("nixos-home-builder", ProfileKind::NixOs, ProfileLayer::Standalone),
+        Profile::new("nixos-home-automation", ProfileKind::NixOs, ProfileLayer::Standalone),
+        Profile::new("nixos-home-data-services", ProfileKind::NixOs, ProfileLayer::Standalone),
+        Profile::new("nixos-home-media-automation", ProfileKind::NixOs, ProfileLayer::Standalone),
+        Profile::new("nixos-home-network-extras", ProfileKind::NixOs, ProfileLayer::Standalone),
+        Profile::new("nixos-home-observability", ProfileKind::NixOs, ProfileLayer::Standalone),
+        Profile::new("nixos-home-services", ProfileKind::NixOs, ProfileLayer::Standalone),
+        Profile::new("nixos-home-storage", ProfileKind::NixOs, ProfileLayer::Standalone),
 
         // Darwin foundation
         Profile::new("darwin-developer", ProfileKind::Darwin, ProfileLayer::Foundation)

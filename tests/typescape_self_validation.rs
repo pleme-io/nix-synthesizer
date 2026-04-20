@@ -309,9 +309,9 @@ fn canonical_registry_has_no_invariant_violations() {
 fn canonical_registry_summary_metrics_match_floor() {
     let reg = pleme_nix_registry();
     let s = reg.summary();
-    assert_eq!(s.node_count, 9, "expected 9 nodes (7 nixos + 2 darwin)");
+    assert_eq!(s.node_count, 10, "expected 10 nodes (8 nixos + 2 darwin)");
     assert_eq!(s.darwin_node_count, 2);
-    assert_eq!(s.nixos_node_count, 7);
+    assert_eq!(s.nixos_node_count, 8);
     assert_eq!(s.vpn_link_count, 3);
     assert!(s.cluster_count >= 3);
     assert!(s.blackmatter_component_count >= 20);
