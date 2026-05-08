@@ -151,6 +151,14 @@ pub enum NixNode {
         name: String,
         runtime_inputs: Vec<String>,
         text: String,
+        /// shellcheck codes to exclude (e.g. ["SC2086", "SC2046"]).
+        /// nixpkgs writeShellApplication runs shellcheck by default
+        /// and fails the build on warnings — this option lets typed
+        /// emissions that know what they're doing (quoting style
+        /// intentional for readability, or handled at the AST level)
+        /// opt out of specific checks. Default empty list runs with
+        /// all checks enabled.
+        exclude_shell_checks: Vec<String>,
     },
 
     // ── Escape hatch ────────────────────────────────────────────────
@@ -640,7 +648,7 @@ impl NixNode {
             // so shell uses of `${VAR}` (which are common) must be escaped as
             // `''${VAR}`. We escape that at emit time so callers pass natural
             // shell syntax.
-            Self::WriteShellApp { name, runtime_inputs, text } => {
+            Self::WriteShellApp { name, runtime_inputs, text, exclude_shell_checks } => {
                 let inner_pad = "  ".repeat(indent + 1);
                 let inputs_list = if runtime_inputs.is_empty() {
                     "[ ]".to_string()
@@ -652,9 +660,14 @@ impl NixNode {
                         .join(" ");
                     format!("[ {items} ]")
                 };
-                // Escape shell-style ${...} for Nix multi-line string context.
-                // (Shell `$VAR` stays as-is; only `${...}` needs the `''` prefix.)
-                let escaped_text = text.replace("${", "''${");
+                // Escape for Nix indented-string context (''...''):
+                // - `''` (bare doubled single-quote) closes the Nix string, so
+                //   any shell idiom that contains two consecutive `'` (notably
+                //   bash's `'\''` quote-escape) must first be escaped to `'''`.
+                // - `${...}` triggers Nix interpolation unless prefixed with
+                //   `''`, so shell `${VAR}` becomes `''${VAR}`.
+                // Order matters: escape `''` first, then `${`.
+                let escaped_text = text.replace("''", "'''").replace("${", "''${");
                 let text_inner_pad = "  ".repeat(indent + 2);
                 let text_body = escaped_text
                     .lines()
@@ -667,10 +680,21 @@ impl NixNode {
                     })
                     .collect::<Vec<_>>()
                     .join("\n");
+                let excludes_line = if exclude_shell_checks.is_empty() {
+                    String::new()
+                } else {
+                    let items = exclude_shell_checks
+                        .iter()
+                        .map(|c| format!("\"{c}\""))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    format!("{inner_pad}excludeShellChecks = [ {items} ];\n")
+                };
                 format!(
                     "{pad}pkgs.writeShellApplication {{\n\
                      {inner_pad}name = \"{name}\";\n\
                      {inner_pad}runtimeInputs = {inputs_list};\n\
+                     {excludes_line}\
                      {inner_pad}text = ''\n\
                      {text_body}\n\
                      {inner_pad}'';\n\
@@ -1045,6 +1069,7 @@ mod tests {
             name: "foo".into(),
             runtime_inputs: vec!["bash".into(), "jq".into()],
             text: "echo hi".into(),
+            exclude_shell_checks: vec![],
         };
         let out = node.emit(0);
         assert!(out.contains("pkgs.writeShellApplication {"));
@@ -1061,6 +1086,7 @@ mod tests {
             name: "bare".into(),
             runtime_inputs: vec![],
             text: "true".into(),
+            exclude_shell_checks: vec![],
         };
         let out = node.emit(0);
         assert!(out.contains("runtimeInputs = [ ];"));
@@ -1074,6 +1100,7 @@ mod tests {
             name: "needs-escape".into(),
             runtime_inputs: vec![],
             text: "echo \"${HOME}\"".into(),
+            exclude_shell_checks: vec![],
         };
         let out = node.emit(0);
         assert!(
@@ -1089,6 +1116,7 @@ mod tests {
             name: "bare-dollar".into(),
             runtime_inputs: vec![],
             text: "echo \"$HOME\"".into(),
+            exclude_shell_checks: vec![],
         };
         let out = node.emit(0);
         assert!(out.contains("echo \"$HOME\""));
@@ -1100,6 +1128,7 @@ mod tests {
             name: "multi".into(),
             runtime_inputs: vec![],
             text: "line1\nline2\nline3".into(),
+            exclude_shell_checks: vec![],
         };
         let out = node.emit(0);
         // Each non-empty shell line is indented within the text block
@@ -1114,8 +1143,39 @@ mod tests {
             name: "det".into(),
             runtime_inputs: vec!["ruby".into(), "bundler".into()],
             text: "echo deterministic".into(),
+            exclude_shell_checks: vec![],
         };
         assert_eq!(node.emit(0), node.emit(0));
+    }
+
+    #[test]
+    fn write_shell_app_emits_exclude_shell_checks() {
+        let node = NixNode::WriteShellApp {
+            name: "skipper".into(),
+            runtime_inputs: vec!["bash".into()],
+            text: "echo hi".into(),
+            exclude_shell_checks: vec!["SC2086".into(), "SC2046".into()],
+        };
+        let out = node.emit(0);
+        assert!(
+            out.contains("excludeShellChecks = [ \"SC2086\" \"SC2046\" ];"),
+            "expected excludeShellChecks attr — got: {out}"
+        );
+    }
+
+    #[test]
+    fn write_shell_app_omits_exclude_shell_checks_when_empty() {
+        let node = NixNode::WriteShellApp {
+            name: "clean".into(),
+            runtime_inputs: vec![],
+            text: "true".into(),
+            exclude_shell_checks: vec![],
+        };
+        let out = node.emit(0);
+        assert!(
+            !out.contains("excludeShellChecks"),
+            "empty vec must not emit excludeShellChecks — got: {out}"
+        );
     }
 
     #[test]
@@ -1126,6 +1186,7 @@ mod tests {
                 name: "nested".into(),
                 runtime_inputs: vec!["coreutils".into()],
                 text: "echo nested".into(),
+                exclude_shell_checks: vec![],
             },
         )]);
         let out = node.emit(0);
