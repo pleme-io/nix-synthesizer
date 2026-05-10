@@ -147,6 +147,10 @@ pub enum NixNode {
     /// the canonical wrapper for emitting a typed shell script as a Nix
     /// package. `runtime_inputs` are package identifiers (emitted as
     /// `pkgs.${ident}`). `text` is opaque shell (shell has no AST here).
+    /// `exclude_shell_checks` is a list of shellcheck IDs to silence —
+    /// emitted as `excludeShellChecks = [ "SC2046" "SC2086" ];` per
+    /// `pkgs.writeShellApplication`'s spec. Empty list omits the
+    /// attribute entirely (default behaviour: all checks enabled).
     WriteShellApp {
         name: String,
         runtime_inputs: Vec<String>,
@@ -1090,6 +1094,41 @@ mod tests {
         };
         let out = node.emit(0);
         assert!(out.contains("runtimeInputs = [ ];"));
+    }
+
+    /// `excludeShellChecks` is omitted entirely when the list is empty —
+    /// keeps the default-path emission byte-identical to pre-extension
+    /// callers and avoids `excludeShellChecks = [ ];` noise.
+    #[test]
+    fn write_shell_app_empty_exclude_omits_attr_entirely() {
+        let node = NixNode::WriteShellApp {
+            name: "x".into(),
+            runtime_inputs: vec![],
+            text: "true".into(),
+            exclude_shell_checks: vec![],
+        };
+        let out = node.emit(0);
+        assert!(!out.contains("excludeShellChecks"), "expected omitted; got: {out}");
+    }
+
+    /// Non-empty `exclude_shell_checks` emits the canonical
+    /// `excludeShellChecks = [ "SC2046" "SC2086" ];` shape. Required by
+    /// arch-synthesizer's layer_workspace_builder for shell that uses
+    /// IFS-sensitive expansions on operator-controlled values where
+    /// process substitution would lose typing.
+    #[test]
+    fn write_shell_app_with_exclude_emits_attr() {
+        let node = NixNode::WriteShellApp {
+            name: "x".into(),
+            runtime_inputs: vec![],
+            text: "true".into(),
+            exclude_shell_checks: vec!["SC2046".into(), "SC2086".into()],
+        };
+        let out = node.emit(0);
+        assert!(
+            out.contains("excludeShellChecks = [ \"SC2046\" \"SC2086\" ];"),
+            "emitted: {out}"
+        );
     }
 
     #[test]
