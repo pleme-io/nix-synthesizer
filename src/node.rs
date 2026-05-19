@@ -457,8 +457,20 @@ impl NixNode {
                     return format!("{pad}[ {} ]", elems[0].emit(0));
                 }
                 let mut out = format!("{pad}[\n");
+                let inner_pad = "  ".repeat(indent + 1);
                 for elem in elems {
-                    out.push_str(&elem.emit(indent + 1));
+                    // Per Nix grammar, list elements are `expr_select` —
+                    // bare function applications and binary operators
+                    // tokenize into multiple list elements without
+                    // explicit grouping. Wrap complex elements in parens
+                    // so `[ (lib.mkIf cond body) {...} ]` stays a
+                    // two-element list. Mirrors the SelectOr + Apply
+                    // arg parenthesization that already lives below.
+                    if needs_parens(elem) {
+                        out.push_str(&format!("{inner_pad}({})", elem.emit(0)));
+                    } else {
+                        out.push_str(&elem.emit(indent + 1));
+                    }
                     out.push('\n');
                 }
                 out.push_str(&format!("{pad}]"));

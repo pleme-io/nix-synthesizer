@@ -126,6 +126,55 @@ fn select_or_with_complex_default_wraps_in_parens() {
     assert!(out.ends_with(')'), "expected closing paren — got `{out}`");
 }
 
+/// List elements that are complex expressions (function applications,
+/// let-ins, binary operators) get wrapped in parens — Nix parses list
+/// elements as `expr_select`, so bare function calls tokenize into
+/// multiple separate list elements. Regression guard for the
+/// `lib.mkMerge [ {...} (lib.mkIf isDarwin (...)) (lib.mkIf (!isDarwin) (...)) ]`
+/// pattern used by every daemon-shape module renderer.
+#[test]
+fn list_with_complex_elements_wraps_each_in_parens() {
+    let mk_if_call = NixNode::Apply {
+        func: Box::new(NixNode::Apply {
+            func: Box::new(NixNode::Select {
+                expr: Box::new(NixNode::ident("lib")),
+                path: vec!["mkIf".into()],
+            }),
+            arg: Box::new(NixNode::ident("isDarwin")),
+        }),
+        arg: Box::new(NixNode::AttrSet(vec![])),
+    };
+    // A list of [ {empty-attrset} (mkIf-call) ].
+    let list = NixNode::List(vec![NixNode::AttrSet(vec![]), mk_if_call]);
+    let out = list.emit(0);
+    // The mkIf call (a function application) must be paren-wrapped.
+    assert!(
+        out.contains("(lib.mkIf isDarwin"),
+        "list element did not get paren-wrapped — got `{out}`",
+    );
+}
+
+/// Simple list elements (Ident, Str, Int, AttrSet) stay bare —
+/// no parens. Adding parens to simple elements would just be noise.
+#[test]
+fn list_with_simple_elements_omits_parens() {
+    let list = NixNode::List(vec![
+        NixNode::Str("a".into()),
+        NixNode::Str("b".into()),
+        NixNode::ident("foo"),
+        NixNode::AttrSet(vec![]),
+    ]);
+    let out = list.emit(0);
+    assert!(
+        !out.contains("(\""),
+        "list emitted parens for simple element — got `{out}`",
+    );
+    assert!(
+        !out.contains("(foo)"),
+        "list emitted parens for bare identifier — got `{out}`",
+    );
+}
+
 /// Specific shape proof for the canonical `pkgs.X or (throw ''hint'')`
 /// pattern used by every pleme-io module renderer that defaults the
 /// package option. Mirrors blackmatter_domain::system_module's emission.
