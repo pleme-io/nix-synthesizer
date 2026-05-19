@@ -77,6 +77,76 @@ fn select_or_emits_with_default() {
     assert!(out.contains("null"));
 }
 
+/// Simple defaults (Null, Ident, Str, AttrSet, ...) emit bare —
+/// no parens around `pkgs.X or null`. Adding parens to simple
+/// defaults would just be pointless syntactic noise.
+#[test]
+fn select_or_with_simple_default_omits_parens() {
+    let cases = [
+        ("null fallback", NixNode::Null),
+        ("ident fallback", NixNode::ident("default")),
+        ("string fallback", NixNode::Str("hello".into())),
+        ("empty attrset", NixNode::AttrSet(vec![])),
+    ];
+    for (label, default) in cases {
+        let node = NixNode::SelectOr {
+            expr: Box::new(NixNode::ident("pkgs")),
+            path: vec!["x".into()],
+            default: Box::new(default),
+        };
+        let out = node.emit(0);
+        assert!(
+            !out.contains("or ("),
+            "{label}: SelectOr emitted unwanted parens for simple default — got `{out}`",
+        );
+    }
+}
+
+/// Complex defaults (function applications, let-ins, with-expressions,
+/// conditionals) get wrapped in parens — Nix's `or` parser binds them
+/// incorrectly without explicit grouping. Regression guard for the
+/// blackmatter_domain::system_module renderer's `pkgs.X or (throw
+/// "...")` pattern.
+#[test]
+fn select_or_with_complex_default_wraps_in_parens() {
+    let throw_apply = NixNode::Apply {
+        func: Box::new(NixNode::ident("throw")),
+        arg: Box::new(NixNode::Str("missing X".into())),
+    };
+    let node = NixNode::SelectOr {
+        expr: Box::new(NixNode::ident("pkgs")),
+        path: vec!["format-ban".into()],
+        default: Box::new(throw_apply),
+    };
+    let out = node.emit(0);
+    assert!(
+        out.contains("or ("),
+        "SelectOr lost parens around complex default — got `{out}`",
+    );
+    assert!(out.ends_with(')'), "expected closing paren — got `{out}`");
+}
+
+/// Specific shape proof for the canonical `pkgs.X or (throw ''hint'')`
+/// pattern used by every pleme-io module renderer that defaults the
+/// package option. Mirrors blackmatter_domain::system_module's emission.
+#[test]
+fn select_or_with_throw_call_default_renders_canonical_shape() {
+    let hint = "pkgs.format-ban is not in scope.\nApply the overlay.".to_string();
+    let throw_call = NixNode::Apply {
+        func: Box::new(NixNode::ident("throw")),
+        arg: Box::new(NixNode::MultilineStr(hint)),
+    };
+    let node = NixNode::SelectOr {
+        expr: Box::new(NixNode::ident("pkgs")),
+        path: vec!["format-ban".into()],
+        default: Box::new(throw_call),
+    };
+    let out = node.emit(0);
+    assert!(out.contains("pkgs.format-ban or ("));
+    assert!(out.contains("throw"));
+    assert!(out.contains("is not in scope"));
+}
+
 #[test]
 fn attr_set_empty_emits_braces() {
     assert_eq!(NixNode::AttrSet(vec![]).emit(0), "{ }");

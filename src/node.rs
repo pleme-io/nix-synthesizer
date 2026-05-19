@@ -428,7 +428,22 @@ impl NixNode {
             Self::SelectOr { expr, path, default } => {
                 let base = expr.emit(0);
                 let def = default.emit(0);
-                format!("{pad}{base}.{} or {def}", path.join("."))
+                let path_str = path.join(".");
+                // Per Nix grammar, the right side of `or` is `expr_select`
+                // — which accepts `expr_simple` + select chains but NOT
+                // function application or other compound forms. Wrap
+                // complex defaults in parens so the parser binds them
+                // correctly. Simple variants (Ident, Null, AttrSet, ...)
+                // are left bare — adding parens there would just create
+                // pointless syntactic noise on `pkgs.X or null`. The
+                // `needs_parens` helper already classifies the variants
+                // that require grouping (Apply, Function, LetIn, With,
+                // If, BinOp, Lambda) — reused here.
+                if needs_parens(default) {
+                    format!("{pad}{base}.{path_str} or ({def})")
+                } else {
+                    format!("{pad}{base}.{path_str} or {def}")
+                }
             }
 
             // Collections
