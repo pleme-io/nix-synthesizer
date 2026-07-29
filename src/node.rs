@@ -349,6 +349,45 @@ impl Binding {
             value,
         }
     }
+
+    /// An `inherit a b;` binding inside an attribute set or `let` block.
+    ///
+    /// `inherit` is a *binding form*, not a `key = value;` pair: it has no
+    /// left-hand side and carries its own terminator. [`NixNode::Inherit`]
+    /// could therefore be emitted as a standalone node but never placed
+    /// inside an `AttrSet`/`LetIn`, both of which take `Binding`s — so
+    /// `{ inherit system; }`, one of the most common shapes in real Nix, had
+    /// no representation at all.
+    ///
+    /// `key` is unused for this form and left empty; [`emit_binding`]
+    /// dispatches on the *value* being an inherit node, so it cannot be
+    /// desynchronised from the key. Modelling it this way keeps `Binding` a
+    /// struct — turning it into an enum would break every consumer in the
+    /// fleet for a form that only affects how one binding prints.
+    ///
+    /// It matters that this is exact rather than desugared: `{ inherit
+    /// system; }` and `{ system = system; }` mean the same thing here, but
+    /// `nix-instantiate --parse` prints them as different trees, so
+    /// desugaring would forfeit AST-level equality against hand-written Nix.
+    #[must_use]
+    pub fn inherit(names: &[&str]) -> Self {
+        Self {
+            key: String::new(),
+            value: NixNode::Inherit(names.iter().map(|n| (*n).to_string()).collect()),
+        }
+    }
+
+    /// An `inherit (src) a b;` binding — the scoped form of [`Self::inherit`].
+    #[must_use]
+    pub fn inherit_from(src: NixNode, names: &[&str]) -> Self {
+        Self {
+            key: String::new(),
+            value: NixNode::InheritFrom {
+                src: Box::new(src),
+                names: names.iter().map(|n| (*n).to_string()).collect(),
+            },
+        }
+    }
 }
 
 impl FnArg {
@@ -760,6 +799,14 @@ fn emit_attr_set(pad: &str, indent: usize, bindings: &[Binding], rec: bool) -> S
 
 fn emit_binding(indent: usize, binding: &Binding) -> String {
     let pad = "  ".repeat(indent);
+
+    // `inherit` binds without a left-hand side and supplies its own `;`.
+    // Dispatching on the value (not on the key) is what makes
+    // `Binding::inherit` impossible to desynchronise from its key.
+    if matches!(binding.value, NixNode::Inherit(_) | NixNode::InheritFrom { .. }) {
+        return format!("{}\n", binding.value.emit(indent));
+    }
+
     let value = binding.value.emit(0);
 
     // For multi-line values, format the value on the next line
@@ -1258,5 +1305,51 @@ mod tests {
         let out = node.emit(0);
         assert!(out.contains("program ="));
         assert!(out.contains("pkgs.writeShellApplication"));
+    }
+
+    // ── inherit as a binding form ────────────────────────────────────────
+
+    #[test]
+    fn inherit_binding_emits_without_a_left_hand_side() {
+        let node = NixNode::AttrSet(vec![Binding::inherit(&["system"])]);
+        assert_eq!(node.emit(0), "{\n  inherit system;\n}");
+    }
+
+    #[test]
+    fn inherit_binding_does_not_desugar_to_self_assignment() {
+        // `{ inherit system; }` and `{ system = system; }` mean the same
+        // thing but parse to different trees, so the emitter must not
+        // silently pick the other one.
+        let inherited = NixNode::AttrSet(vec![Binding::inherit(&["system"])]).emit(0);
+        let assigned =
+            NixNode::AttrSet(vec![Binding::new("system", NixNode::Ident("system".into()))])
+                .emit(0);
+        assert_ne!(inherited, assigned);
+        assert!(!inherited.contains('='));
+    }
+
+    #[test]
+    fn inherit_binding_carries_exactly_one_terminator() {
+        let out = NixNode::AttrSet(vec![Binding::inherit(&["a", "b"])]).emit(0);
+        assert_eq!(out.matches(';').count(), 1, "got: {out}");
+        assert!(out.contains("inherit a b;"), "got: {out}");
+    }
+
+    #[test]
+    fn inherit_from_binding_keeps_its_source() {
+        let node = NixNode::AttrSet(vec![Binding::inherit_from(
+            NixNode::Ident("pkgs".into()),
+            &["lib"],
+        )]);
+        assert_eq!(node.emit(0), "{\n  inherit (pkgs) lib;\n}");
+    }
+
+    #[test]
+    fn inherit_binding_works_inside_let() {
+        let node = NixNode::LetIn {
+            bindings: vec![Binding::inherit(&["system"])],
+            body: Box::new(NixNode::Ident("system".into())),
+        };
+        assert_eq!(node.emit(0), "let\n  inherit system;\nin\nsystem");
     }
 }
