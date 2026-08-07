@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "cargo_lock_sha256": "5465435d6dda4c48564bbfbcddc39c0e8197f28c4db08580252e2374f72222c5",
+  "cargo_lock_sha256": "c6ae9707c713d9abc6a4d1782152a36cf9d72b66b44bbe851fc1b744ac9e51b9",
   "manifest_sha256": {
-    "Cargo.toml": "33f20a05e61d0564668018a33e75ae6cc5ff304e054d7d6eb4c1a40edc7ed88f"
+    "Cargo.toml": "e01accd9e27311b5ff21c144a9578af7f2ef390f476c727beac33b8ffccaa5d7"
   },
   "target_resolves": {
     "base": {
@@ -532,7 +532,7 @@
           "std"
         ]
       },
-      "nix-synthesizer-0.1.0": {
+      "nix-synthesizer-0.1.1": {
         "runtime_dependencies": [
           {
             "name": "synthesizer_core",
@@ -2935,7 +2935,7 @@
     "memchr-2.8.3": {
       "edition": "2021"
     },
-    "nix-synthesizer-0.1.0": {
+    "nix-synthesizer-0.1.1": {
       "edition": "2024",
       "lib_target": {
         "name": "nix_synthesizer",
