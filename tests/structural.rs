@@ -1,5 +1,5 @@
-use nix_synthesizer::*;
 use nix_synthesizer::builders::*;
+use nix_synthesizer::*;
 
 // ── FlakeBuilder structural proofs ──────────────────────────────────
 
@@ -99,9 +99,10 @@ fn module_enable_option() {
 #[test]
 fn module_config_section() {
     let out = ModuleBuilder::new()
-        .config("environment", NixNode::attr_set(vec![
-            ("RUST_LOG", NixNode::str("info")),
-        ]))
+        .config(
+            "environment",
+            NixNode::attr_set(vec![("RUST_LOG", NixNode::str("info"))]),
+        )
         .emit();
     assert!(out.contains("config"));
     assert!(out.contains("environment"));
@@ -121,7 +122,10 @@ fn module_both_options_and_config() {
 #[test]
 fn module_let_bindings() {
     let out = ModuleBuilder::new()
-        .let_bind("cfg", NixNode::select(NixNode::ident("config"), &["services", "myapp"]))
+        .let_bind(
+            "cfg",
+            NixNode::select(NixNode::ident("config"), &["services", "myapp"]),
+        )
         .config("x", NixNode::ident("cfg"))
         .emit();
     assert!(out.contains("let"));
@@ -130,10 +134,7 @@ fn module_let_bindings() {
 
 #[test]
 fn module_extra_args() {
-    let out = ModuleBuilder::new()
-        .arg("inputs")
-        .arg("self")
-        .emit();
+    let out = ModuleBuilder::new().arg("inputs").arg("self").emit();
     assert!(out.contains("inputs"));
     assert!(out.contains("self"));
 }
@@ -231,7 +232,10 @@ fn devshell_shell_hook() {
 #[test]
 fn realistic_nixos_module() {
     let out = ModuleBuilder::new()
-        .enable_option(vec!["services", "vector", "enable"], "Enable Vector log aggregator")
+        .enable_option(
+            vec!["services", "vector", "enable"],
+            "Enable Vector log aggregator",
+        )
         .option(
             vec!["services", "vector", "configFile"],
             NixType::Path,
@@ -244,13 +248,16 @@ fn realistic_nixos_module() {
             Some(NixNode::List(vec![])),
             Some("Extra command-line arguments"),
         )
-        .config("systemd", NixNode::attr_set(vec![
-            ("services", NixNode::attr_set(vec![
-                ("vector", NixNode::attr_set(vec![
-                    ("enable", NixNode::Bool(true)),
-                ])),
-            ])),
-        ]))
+        .config(
+            "systemd",
+            NixNode::attr_set(vec![(
+                "services",
+                NixNode::attr_set(vec![(
+                    "vector",
+                    NixNode::attr_set(vec![("enable", NixNode::Bool(true))]),
+                )]),
+            )]),
+        )
         .emit();
 
     // All options present
@@ -279,13 +286,13 @@ fn realistic_flake_nix() {
                 FnArg::required("substrate"),
             ],
             variadic: true,
-            body: Box::new(NixNode::attr_set(vec![
-                ("packages", NixNode::attr_set(vec![
-                    ("x86_64-linux", NixNode::attr_set(vec![
-                        ("default", NixNode::ident("vector")),
-                    ])),
-                ])),
-            ])),
+            body: Box::new(NixNode::attr_set(vec![(
+                "packages",
+                NixNode::attr_set(vec![(
+                    "x86_64-linux",
+                    NixNode::attr_set(vec![("default", NixNode::ident("vector"))]),
+                )]),
+            )])),
         })
         .emit();
 

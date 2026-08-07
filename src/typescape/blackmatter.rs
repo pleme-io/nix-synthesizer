@@ -89,7 +89,11 @@ mod tests {
 
     #[test]
     fn default_namespace_uses_component_name() {
-        let c = BlackmatterComponent::new("secrets", "blackmatter-secrets", ComponentRole::Infrastructure);
+        let c = BlackmatterComponent::new(
+            "secrets",
+            "blackmatter-secrets",
+            ComponentRole::Infrastructure,
+        );
         assert_eq!(c.option_namespace, "blackmatter.components.secrets");
     }
 
@@ -102,8 +106,12 @@ mod tests {
 
     #[test]
     fn component_can_be_both_hm_and_nixos() {
-        let c = BlackmatterComponent::new("kubernetes", "blackmatter-kubernetes", ComponentRole::Infrastructure)
-            .with_modules(true, true, false);
+        let c = BlackmatterComponent::new(
+            "kubernetes",
+            "blackmatter-kubernetes",
+            ComponentRole::Infrastructure,
+        )
+        .with_modules(true, true, false);
         assert!(c.provides_hm);
         assert!(c.provides_nixos);
         assert!(!c.provides_darwin);

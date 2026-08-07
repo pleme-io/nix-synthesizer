@@ -214,9 +214,7 @@ fn attr_set_with_bindings() {
 
 #[test]
 fn rec_attr_set_has_rec_prefix() {
-    let node = NixNode::RecAttrSet(vec![
-        Binding::new("x", NixNode::Int(1)),
-    ]);
+    let node = NixNode::RecAttrSet(vec![Binding::new("x", NixNode::Int(1))]);
     let out = node.emit(0);
     assert!(out.starts_with("rec {"));
 }
@@ -391,7 +389,10 @@ fn bin_op_all_operators() {
             right: Box::new(NixNode::ident("b")),
         };
         let out = node.emit(0);
-        assert!(out.contains(sym), "operator {sym} not found in output: {out}");
+        assert!(
+            out.contains(sym),
+            "operator {sym} not found in output: {out}"
+        );
     }
 }
 
@@ -605,7 +606,10 @@ fn type_anything() {
 
 #[test]
 fn type_list_of_simple() {
-    assert_eq!(NixType::list_of(NixType::Str).emit(), "types.listOf types.str");
+    assert_eq!(
+        NixType::list_of(NixType::Str).emit(),
+        "types.listOf types.str"
+    );
 }
 
 #[test]
@@ -616,7 +620,10 @@ fn type_list_of_compound_gets_parens() {
 
 #[test]
 fn type_attrs_of() {
-    assert_eq!(NixType::attrs_of(NixType::Str).emit(), "types.attrsOf types.str");
+    assert_eq!(
+        NixType::attrs_of(NixType::Str).emit(),
+        "types.attrsOf types.str"
+    );
 }
 
 #[test]
@@ -629,7 +636,10 @@ fn type_enum() {
 
 #[test]
 fn type_null_or() {
-    assert_eq!(NixType::null_or(NixType::Str).emit(), "types.nullOr types.str");
+    assert_eq!(
+        NixType::null_or(NixType::Str).emit(),
+        "types.nullOr types.str"
+    );
 }
 
 #[test]

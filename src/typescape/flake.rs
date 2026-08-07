@@ -14,8 +14,15 @@ pub struct FlakeInput {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FlakeInputUrl {
-    GitHub { org: String, repo: String, branch: Option<String> },
-    GitLab { org: String, repo: String },
+    GitHub {
+        org: String,
+        repo: String,
+        branch: Option<String>,
+    },
+    GitLab {
+        org: String,
+        repo: String,
+    },
     Tarball(String),
     Indirect(String),
     Other(String),
@@ -69,12 +76,20 @@ impl FlakeInput {
 impl FlakeInputUrl {
     #[must_use]
     pub fn pleme_gh(repo: &str) -> Self {
-        Self::GitHub { org: "pleme-io".to_string(), repo: repo.to_string(), branch: None }
+        Self::GitHub {
+            org: "pleme-io".to_string(),
+            repo: repo.to_string(),
+            branch: None,
+        }
     }
 
     #[must_use]
     pub fn nix_community_gh(repo: &str) -> Self {
-        Self::GitHub { org: "nix-community".to_string(), repo: repo.to_string(), branch: None }
+        Self::GitHub {
+            org: "nix-community".to_string(),
+            repo: repo.to_string(),
+            branch: None,
+        }
     }
 }
 

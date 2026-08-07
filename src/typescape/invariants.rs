@@ -5,12 +5,12 @@
 //! compose invariants into a full report and drive both unit tests and
 //! proptest-generated arbitrary inputs against the same check.
 
+use super::NixTypescape;
 use super::blackmatter::ComponentRole;
 use super::node::NodeRole;
 use super::platform::{Architecture, Platform};
 use super::substrate_builder::SubstrateBuilder;
 use super::vpn::SideName;
-use super::NixTypescape;
 
 /// Identifier + description of a single invariant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -25,7 +25,10 @@ pub struct Violation {
 
 impl Violation {
     fn new(id: &'static str, msg: impl Into<String>) -> Self {
-        Self { id: InvariantId(id), message: msg.into() }
+        Self {
+            id: InvariantId(id),
+            message: msg.into(),
+        }
     }
 }
 
@@ -186,7 +189,9 @@ pub fn node_target_coherence(t: &NixTypescape) -> Vec<Violation> {
             ));
         }
         // K3s VMs are aarch64 linux (UTM on Apple silicon).
-        if n.role == NodeRole::K3sVm && (n.target.platform != Platform::Linux || n.target.arch != Architecture::Aarch64) {
+        if n.role == NodeRole::K3sVm
+            && (n.target.platform != Platform::Linux || n.target.arch != Architecture::Aarch64)
+        {
             out.push(Violation::new(
                 "node_target_coherence",
                 format!("k3s-vm node {:?} must be aarch64-linux", n.short_name),
@@ -212,11 +217,20 @@ pub fn darwin_nodes_use_aarch64(t: &NixTypescape) -> Vec<Violation> {
 pub fn nixos_nodes_have_at_least_one_profile_or_are_legacy(t: &NixTypescape) -> Vec<Violation> {
     t.nodes
         .iter()
-        .filter(|n| n.is_nixos() && n.profiles.is_empty() && n.role != NodeRole::Legacy && n.role != NodeRole::VpnGateway && n.role != NodeRole::K3sVm)
+        .filter(|n| {
+            n.is_nixos()
+                && n.profiles.is_empty()
+                && n.role != NodeRole::Legacy
+                && n.role != NodeRole::VpnGateway
+                && n.role != NodeRole::K3sVm
+        })
         .map(|n| {
             Violation::new(
                 "nixos_nodes_have_at_least_one_profile_or_are_legacy",
-                format!("nixos node {} has no profiles and is not legacy/vpn/vm", n.short_name),
+                format!(
+                    "nixos node {} has no profiles and is not legacy/vpn/vm",
+                    n.short_name
+                ),
             )
         })
         .collect()
@@ -243,7 +257,10 @@ pub fn profile_names_unique(t: &NixTypescape) -> Vec<Violation> {
     }
     for (n, count) in seen {
         if count > 1 {
-            out.push(Violation::new("profile_names_unique", format!("profile {n:?} appears {count} times")));
+            out.push(Violation::new(
+                "profile_names_unique",
+                format!("profile {n:?} appears {count} times"),
+            ));
         }
     }
     out
@@ -256,14 +273,18 @@ pub fn specialization_has_foundation(t: &NixTypescape) -> Vec<Violation> {
         .map(|p| {
             Violation::new(
                 "specialization_has_foundation",
-                format!("specialization profile {:?} has no requires_foundation", p.name),
+                format!(
+                    "specialization profile {:?} has no requires_foundation",
+                    p.name
+                ),
             )
         })
         .collect()
 }
 
 pub fn specialization_foundation_exists(t: &NixTypescape) -> Vec<Violation> {
-    let names: std::collections::HashSet<&str> = t.profiles.iter().map(|p| p.name.as_str()).collect();
+    let names: std::collections::HashSet<&str> =
+        t.profiles.iter().map(|p| p.name.as_str()).collect();
     t.profiles
         .iter()
         .filter_map(|p| {
@@ -295,10 +316,16 @@ pub fn foundation_profile_per_platform_exists(t: &NixTypescape) -> Vec<Violation
     }
     let mut out = Vec::new();
     if !has_nixos {
-        out.push(Violation::new("foundation_profile_per_platform_exists", "no nixos foundation profile defined"));
+        out.push(Violation::new(
+            "foundation_profile_per_platform_exists",
+            "no nixos foundation profile defined",
+        ));
     }
     if !has_darwin {
-        out.push(Violation::new("foundation_profile_per_platform_exists", "no darwin foundation profile defined"));
+        out.push(Violation::new(
+            "foundation_profile_per_platform_exists",
+            "no darwin foundation profile defined",
+        ));
     }
     out
 }
@@ -338,9 +365,16 @@ pub fn blackmatter_component_repo_names_unique(t: &NixTypescape) -> Vec<Violatio
 }
 
 pub fn blackmatter_aggregator_unique(t: &NixTypescape) -> Vec<Violation> {
-    let count = t.blackmatter_components.iter().filter(|c| c.role == ComponentRole::Aggregator).count();
+    let count = t
+        .blackmatter_components
+        .iter()
+        .filter(|c| c.role == ComponentRole::Aggregator)
+        .count();
     match count {
-        0 => vec![Violation::new("blackmatter_aggregator_unique", "no aggregator component")],
+        0 => vec![Violation::new(
+            "blackmatter_aggregator_unique",
+            "no aggregator component",
+        )],
         1 => vec![],
         n => vec![Violation::new(
             "blackmatter_aggregator_unique",
@@ -370,7 +404,10 @@ pub fn vpn_link_names_unique(t: &NixTypescape) -> Vec<Violation> {
     }
     for (n, count) in seen {
         if count > 1 {
-            out.push(Violation::new("vpn_link_names_unique", format!("link {n:?} duplicated {count} times")));
+            out.push(Violation::new(
+                "vpn_link_names_unique",
+                format!("link {n:?} duplicated {count} times"),
+            ));
         }
     }
     out
@@ -400,7 +437,10 @@ pub fn vpn_sides_distinct(t: &NixTypescape) -> Vec<Violation> {
         .map(|l| {
             Violation::new(
                 "vpn_sides_distinct",
-                format!("link {:?} has identical sides ({:?} ↔ {:?})", l.name, l.side_a.node, l.side_b.node),
+                format!(
+                    "link {:?} has identical sides ({:?} ↔ {:?})",
+                    l.name, l.side_a.node, l.side_b.node
+                ),
             )
         })
         .collect()
@@ -410,7 +450,12 @@ pub fn vpn_addresses_distinct(t: &NixTypescape) -> Vec<Violation> {
     t.vpn_links
         .iter()
         .filter(|l| !l.addresses_are_distinct())
-        .map(|l| Violation::new("vpn_addresses_distinct", format!("link {:?} has identical side addresses", l.name)))
+        .map(|l| {
+            Violation::new(
+                "vpn_addresses_distinct",
+                format!("link {:?} has identical side addresses", l.name),
+            )
+        })
         .collect()
 }
 
@@ -418,7 +463,12 @@ pub fn vpn_addresses_in_subnet(t: &NixTypescape) -> Vec<Violation> {
     t.vpn_links
         .iter()
         .filter(|l| !l.addresses_in_subnet())
-        .map(|l| Violation::new("vpn_addresses_in_subnet", format!("link {:?} addresses outside subnet", l.name)))
+        .map(|l| {
+            Violation::new(
+                "vpn_addresses_in_subnet",
+                format!("link {:?} addresses outside subnet", l.name),
+            )
+        })
         .collect()
 }
 
@@ -429,7 +479,10 @@ pub fn vpn_subnets_non_overlapping(t: &NixTypescape) -> Vec<Violation> {
             if a.subnet.overlaps(b.subnet) {
                 out.push(Violation::new(
                     "vpn_subnets_non_overlapping",
-                    format!("links {:?} and {:?} have overlapping subnets", a.name, b.name),
+                    format!(
+                        "links {:?} and {:?} have overlapping subnets",
+                        a.name, b.name
+                    ),
                 ));
             }
         }
@@ -457,7 +510,10 @@ pub fn vpn_responder_has_endpoint(t: &NixTypescape) -> Vec<Violation> {
         .map(|l| {
             Violation::new(
                 "vpn_responder_has_endpoint",
-                format!("link {:?} responder missing endpoint or listen_port", l.name),
+                format!(
+                    "link {:?} responder missing endpoint or listen_port",
+                    l.name
+                ),
             )
         })
         .collect()
@@ -477,14 +533,18 @@ pub fn vpn_psk_on_initiator(t: &NixTypescape) -> Vec<Violation> {
 }
 
 pub fn vpn_local_node_exists(t: &NixTypescape) -> Vec<Violation> {
-    let short_names: std::collections::HashSet<&str> = t.nodes.iter().map(|n| n.short_name.as_str()).collect();
+    let short_names: std::collections::HashSet<&str> =
+        t.nodes.iter().map(|n| n.short_name.as_str()).collect();
     let mut out = Vec::new();
     // The initiator side (side_a) must always be a registered local node.
     for l in &t.vpn_links {
         if !short_names.contains(l.side_a.node.as_str()) {
             out.push(Violation::new(
                 "vpn_local_node_exists",
-                format!("link {:?} initiator {:?} is not a registered node", l.name, l.side_a.node),
+                format!(
+                    "link {:?} initiator {:?} is not a registered node",
+                    l.name, l.side_a.node
+                ),
             ));
         }
     }
@@ -512,7 +572,10 @@ pub fn vpn_keepalive_set_for_internet_links(t: &NixTypescape) -> Vec<Violation> 
         .map(|l| {
             Violation::new(
                 "vpn_keepalive_set_for_internet_links",
-                format!("internet link {:?} (mtu<1420) missing persistent_keepalive", l.name),
+                format!(
+                    "internet link {:?} (mtu<1420) missing persistent_keepalive",
+                    l.name
+                ),
             )
         })
         .collect()
@@ -526,14 +589,18 @@ pub fn cluster_names_unique(t: &NixTypescape) -> Vec<Violation> {
     }
     for (n, count) in seen {
         if count > 1 {
-            out.push(Violation::new("cluster_names_unique", format!("cluster {n:?} duplicated {count} times")));
+            out.push(Violation::new(
+                "cluster_names_unique",
+                format!("cluster {n:?} duplicated {count} times"),
+            ));
         }
     }
     out
 }
 
 pub fn cluster_node_exists(t: &NixTypescape) -> Vec<Violation> {
-    let short_names: std::collections::HashSet<&str> = t.nodes.iter().map(|n| n.short_name.as_str()).collect();
+    let short_names: std::collections::HashSet<&str> =
+        t.nodes.iter().map(|n| n.short_name.as_str()).collect();
     t.clusters
         .iter()
         .filter(|c| !short_names.contains(c.node.as_str()))
@@ -581,7 +648,10 @@ pub fn cluster_kubeconfig_convention(t: &NixTypescape) -> Vec<Violation> {
         .map(|c| {
             Violation::new(
                 "cluster_kubeconfig_convention",
-                format!("cluster {:?} does not use /etc/rancher/k3s/k3s.yaml", c.name),
+                format!(
+                    "cluster {:?} does not use /etc/rancher/k3s/k3s.yaml",
+                    c.name
+                ),
             )
         })
         .collect()
@@ -601,7 +671,8 @@ pub fn cluster_cidrs_do_not_overlap_service_cidrs(t: &NixTypescape) -> Vec<Viola
 }
 
 pub fn cluster_vpn_link_exists(t: &NixTypescape) -> Vec<Violation> {
-    let link_names: std::collections::HashSet<&str> = t.vpn_links.iter().map(|l| l.name.as_str()).collect();
+    let link_names: std::collections::HashSet<&str> =
+        t.vpn_links.iter().map(|l| l.name.as_str()).collect();
     let mut out = Vec::new();
     for c in &t.clusters {
         for l in &c.vpn_links {
@@ -624,7 +695,10 @@ pub fn flake_input_names_unique(t: &NixTypescape) -> Vec<Violation> {
     }
     for (n, count) in seen {
         if count > 1 {
-            out.push(Violation::new("flake_input_names_unique", format!("input {n:?} duplicated {count} times")));
+            out.push(Violation::new(
+                "flake_input_names_unique",
+                format!("input {n:?} duplicated {count} times"),
+            ));
         }
     }
     out
@@ -647,7 +721,10 @@ pub fn nixpkgs_input_present(t: &NixTypescape) -> Vec<Violation> {
     if t.flake_inputs.iter().any(|f| f.name == "nixpkgs") {
         vec![]
     } else {
-        vec![Violation::new("nixpkgs_input_present", "no `nixpkgs` flake input declared")]
+        vec![Violation::new(
+            "nixpkgs_input_present",
+            "no `nixpkgs` flake input declared",
+        )]
     }
 }
 
@@ -655,9 +732,15 @@ pub fn substrate_rust_release_has_four_targets(t: &NixTypescape) -> Vec<Violatio
     t.substrate_builders
         .iter()
         .filter_map(|b| match b {
-            SubstrateBuilder::RustToolRelease { tool_name, targets, .. }
-            | SubstrateBuilder::RustWorkspaceRelease { tool_name, targets, .. } => {
-                if targets.len() == 4 { None } else {
+            SubstrateBuilder::RustToolRelease {
+                tool_name, targets, ..
+            }
+            | SubstrateBuilder::RustWorkspaceRelease {
+                tool_name, targets, ..
+            } => {
+                if targets.len() == 4 {
+                    None
+                } else {
                     Some(Violation::new(
                         "substrate_rust_release_has_four_targets",
                         format!("{tool_name:?} has {} targets, expected 4", targets.len()),
@@ -670,11 +753,14 @@ pub fn substrate_rust_release_has_four_targets(t: &NixTypescape) -> Vec<Violatio
 }
 
 pub fn substrate_builder_names_unique_per_kind(t: &NixTypescape) -> Vec<Violation> {
-    let mut seen = std::collections::HashMap::<(super::substrate_builder::BuilderKind, String), usize>::new();
+    let mut seen =
+        std::collections::HashMap::<(super::substrate_builder::BuilderKind, String), usize>::new();
     for b in &t.substrate_builders {
         let key = match b {
             SubstrateBuilder::RustToolRelease { tool_name, .. } => (b.kind(), tool_name.clone()),
-            SubstrateBuilder::RustWorkspaceRelease { tool_name, .. } => (b.kind(), tool_name.clone()),
+            SubstrateBuilder::RustWorkspaceRelease { tool_name, .. } => {
+                (b.kind(), tool_name.clone())
+            }
             SubstrateBuilder::RustToolImage { tool_name, .. } => (b.kind(), tool_name.clone()),
             SubstrateBuilder::RustService { service_name, .. } => (b.kind(), service_name.clone()),
             SubstrateBuilder::RustLibrary { crate_name } => (b.kind(), crate_name.clone()),
@@ -709,12 +795,14 @@ pub fn substrate_services_expose_nixos_module(t: &NixTypescape) -> Vec<Violation
     t.substrate_builders
         .iter()
         .filter_map(|b| match b {
-            SubstrateBuilder::RustService { service_name, has_nixos_module, .. } if !*has_nixos_module => {
-                Some(Violation::new(
-                    "substrate_services_expose_nixos_module",
-                    format!("rust service {service_name:?} has no nixos module"),
-                ))
-            }
+            SubstrateBuilder::RustService {
+                service_name,
+                has_nixos_module,
+                ..
+            } if !*has_nixos_module => Some(Violation::new(
+                "substrate_services_expose_nixos_module",
+                format!("rust service {service_name:?} has no nixos module"),
+            )),
             _ => None,
         })
         .collect()
@@ -747,7 +835,12 @@ pub fn secret_paths_valid_format(t: &NixTypescape) -> Vec<Violation> {
         if path.depth() < 2 || path.depth() > 5 {
             out.push(Violation::new(
                 "secret_paths_valid_format",
-                format!("secret {:?} on node {:?} has invalid depth {}", path.as_str(), node, path.depth()),
+                format!(
+                    "secret {:?} on node {:?} has invalid depth {}",
+                    path.as_str(),
+                    node,
+                    path.depth()
+                ),
             ));
         }
     }
@@ -775,7 +868,8 @@ pub fn secret_paths_unique_per_node(t: &NixTypescape) -> Vec<Violation> {
 }
 
 pub fn secret_node_reference_exists_or_is_shared(t: &NixTypescape) -> Vec<Violation> {
-    let short_names: std::collections::HashSet<&str> = t.nodes.iter().map(|n| n.short_name.as_str()).collect();
+    let short_names: std::collections::HashSet<&str> =
+        t.nodes.iter().map(|n| n.short_name.as_str()).collect();
     let mut out = Vec::new();
     for (node, path) in &t.secrets {
         // Allow "shared" pseudo-node used for fleet-wide secrets
@@ -819,7 +913,12 @@ pub fn cid_k3s_managed_by_darwin_host(t: &NixTypescape) -> Vec<Violation> {
     if let Some(cid_k3s) = t.nodes.iter().find(|n| n.short_name == "cid-k3s") {
         match cid_k3s.managing_node.as_deref() {
             Some(name) => {
-                if t.nodes.iter().find(|n| n.short_name == name).map(|n| n.is_darwin()) != Some(true) {
+                if t.nodes
+                    .iter()
+                    .find(|n| n.short_name == name)
+                    .map(|n| n.is_darwin())
+                    != Some(true)
+                {
                     out.push(Violation::new(
                         "cid_k3s_managed_by_darwin_host",
                         format!("cid-k3s managing node {name:?} is not darwin"),
@@ -840,14 +939,22 @@ pub fn ryn_k3s_managed_by_darwin_host(t: &NixTypescape) -> Vec<Violation> {
     if let Some(n) = t.nodes.iter().find(|n| n.short_name == "ryn-k3s") {
         match n.managing_node.as_deref() {
             Some(name) => {
-                if t.nodes.iter().find(|n| n.short_name == name).map(|n| n.is_darwin()) != Some(true) {
+                if t.nodes
+                    .iter()
+                    .find(|n| n.short_name == name)
+                    .map(|n| n.is_darwin())
+                    != Some(true)
+                {
                     out.push(Violation::new(
                         "ryn_k3s_managed_by_darwin_host",
                         format!("ryn-k3s managing node {name:?} is not darwin"),
                     ));
                 }
             }
-            None => out.push(Violation::new("ryn_k3s_managed_by_darwin_host", "ryn-k3s has no managing_node")),
+            None => out.push(Violation::new(
+                "ryn_k3s_managed_by_darwin_host",
+                "ryn-k3s has no managing_node",
+            )),
         }
     }
     out
@@ -868,7 +975,10 @@ mod tests {
             for v in &violations {
                 eprintln!("[{}] {}", v.id.0, v.message);
             }
-            panic!("canonical registry has {} invariant violations", violations.len());
+            panic!(
+                "canonical registry has {} invariant violations",
+                violations.len()
+            );
         }
     }
 
@@ -900,7 +1010,12 @@ mod tests {
     fn duplicated_hostname_detected() {
         let mut t = pleme_nix_registry();
         // Duplicate plo's entry to trigger detection.
-        let plo = t.nodes.iter().find(|n| n.short_name == "plo").cloned().unwrap();
+        let plo = t
+            .nodes
+            .iter()
+            .find(|n| n.short_name == "plo")
+            .cloned()
+            .unwrap();
         let mut dup = plo.clone();
         dup.short_name = "plo-dup".into();
         t.nodes.push(dup);

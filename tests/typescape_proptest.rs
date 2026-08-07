@@ -4,13 +4,15 @@
 //! internally consistent under arbitrary perturbation.
 
 use nix_synthesizer::typescape::{
+    NixTypescape,
     invariants::{self, Violation},
     node::{Node, NodeRole},
-    platform::{Architecture, Hostname, IpV4Address, IpV4Cidr, Platform, Target, WireguardInterface},
+    platform::{
+        Architecture, Hostname, IpV4Address, IpV4Cidr, Platform, Target, WireguardInterface,
+    },
     profile::{Profile, ProfileKind, ProfileLayer},
     secret::SecretPath,
     vpn::{SideName, VpnLink, VpnProfile, VpnSide},
-    NixTypescape,
 };
 use proptest::prelude::*;
 
@@ -31,9 +33,7 @@ fn arb_hostname() -> impl Strategy<Value = Hostname> {
 // ── Strategy: CIDR ──────────────────────────────────────────────────────────
 
 fn arb_cidr_24() -> impl Strategy<Value = IpV4Cidr> {
-    (0u8..=255, 0u8..=255).prop_map(|(b, c)| {
-        IpV4Cidr::parse(&format!("10.{b}.{c}.0/24")).unwrap()
-    })
+    (0u8..=255, 0u8..=255).prop_map(|(b, c)| IpV4Cidr::parse(&format!("10.{b}.{c}.0/24")).unwrap())
 }
 
 // ── Strategy: WireguardInterface ────────────────────────────────────────────
@@ -194,24 +194,41 @@ fn arb_vpn_link() -> impl Strategy<Value = VpnLink> {
         0u16..=65535,
         Just(VpnProfile::K8sControlPlane),
     )
-        .prop_filter_map("side names distinct, addresses valid", |(iface, subnet, a, b, port, profile)| {
-            if a == b { return None; }
-            // Addresses within the subnet: pick network+1 and network+2.
-            let base = subnet.network().as_u32();
-            let addr_a = IpV4Address((base + 1).to_be_bytes());
-            let addr_b = IpV4Address((base + 2).to_be_bytes());
-            Some(VpnLink {
-                name: format!("{a}-{b}"),
-                profile,
-                interface: iface,
-                subnet,
-                mtu: 1420,
-                persistent_keepalive: None,
-                side_a: VpnSide { node: a, address: addr_a, listen_port: None, endpoint: None, private_key_secret: "x".into() },
-                side_b: VpnSide { node: b, address: addr_b, listen_port: Some(port), endpoint: Some(format!("{port}:host")), private_key_secret: "y".into() },
-                psk_on_side: SideName::A,
-            })
-        })
+        .prop_filter_map(
+            "side names distinct, addresses valid",
+            |(iface, subnet, a, b, port, profile)| {
+                if a == b {
+                    return None;
+                }
+                // Addresses within the subnet: pick network+1 and network+2.
+                let base = subnet.network().as_u32();
+                let addr_a = IpV4Address((base + 1).to_be_bytes());
+                let addr_b = IpV4Address((base + 2).to_be_bytes());
+                Some(VpnLink {
+                    name: format!("{a}-{b}"),
+                    profile,
+                    interface: iface,
+                    subnet,
+                    mtu: 1420,
+                    persistent_keepalive: None,
+                    side_a: VpnSide {
+                        node: a,
+                        address: addr_a,
+                        listen_port: None,
+                        endpoint: None,
+                        private_key_secret: "x".into(),
+                    },
+                    side_b: VpnSide {
+                        node: b,
+                        address: addr_b,
+                        listen_port: Some(port),
+                        endpoint: Some(format!("{port}:host")),
+                        private_key_secret: "y".into(),
+                    },
+                    psk_on_side: SideName::A,
+                })
+            },
+        )
 }
 
 proptest! {
@@ -252,8 +269,16 @@ fn arb_profile_name() -> impl Strategy<Value = String> {
 fn arb_profile() -> impl Strategy<Value = Profile> {
     (
         arb_profile_name(),
-        prop_oneof![Just(ProfileKind::NixOs), Just(ProfileKind::Darwin), Just(ProfileKind::Kindling)],
-        prop_oneof![Just(ProfileLayer::Foundation), Just(ProfileLayer::Specialization), Just(ProfileLayer::Standalone)],
+        prop_oneof![
+            Just(ProfileKind::NixOs),
+            Just(ProfileKind::Darwin),
+            Just(ProfileKind::Kindling)
+        ],
+        prop_oneof![
+            Just(ProfileLayer::Foundation),
+            Just(ProfileLayer::Specialization),
+            Just(ProfileLayer::Standalone)
+        ],
     )
         .prop_map(|(name, kind, layer)| {
             let mut p = Profile::new(&name, kind, layer);
@@ -410,9 +435,8 @@ fn arb_built_node() -> impl Strategy<Value = Node> {
         arb_hostname(),
         arb_target(),
         arb_node_role(),
-    ).prop_map(|(short, host, t, role)| {
-        Node::new(&short, host.as_str(), t, role, "root")
-    })
+    )
+        .prop_map(|(short, host, t, role)| Node::new(&short, host.as_str(), t, role, "root"))
 }
 
 proptest! {

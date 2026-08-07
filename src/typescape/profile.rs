@@ -91,16 +91,24 @@ mod tests {
 
     #[test]
     fn foundation_profile_has_no_requirement() {
-        let p = Profile::new("nixos-pleme-base", ProfileKind::NixOs, ProfileLayer::Foundation);
+        let p = Profile::new(
+            "nixos-pleme-base",
+            ProfileKind::NixOs,
+            ProfileLayer::Foundation,
+        );
         assert!(p.is_foundation());
         assert_eq!(p.requires_foundation, None);
     }
 
     #[test]
     fn specialization_profile_can_require_foundation() {
-        let p = Profile::new("nixos-k3s-server", ProfileKind::NixOs, ProfileLayer::Specialization)
-            .requiring("nixos-pleme-base")
-            .with_variant("server");
+        let p = Profile::new(
+            "nixos-k3s-server",
+            ProfileKind::NixOs,
+            ProfileLayer::Specialization,
+        )
+        .requiring("nixos-pleme-base")
+        .with_variant("server");
         assert!(p.is_specialization());
         assert_eq!(p.requires_foundation.as_deref(), Some("nixos-pleme-base"));
         assert_eq!(p.variant.as_deref(), Some("server"));
@@ -108,7 +116,11 @@ mod tests {
 
     #[test]
     fn standalone_profile_stacks_orthogonally() {
-        let p = Profile::new("nixos-security-hardened", ProfileKind::NixOs, ProfileLayer::Standalone);
+        let p = Profile::new(
+            "nixos-security-hardened",
+            ProfileKind::NixOs,
+            ProfileLayer::Standalone,
+        );
         assert!(!p.is_foundation());
         assert!(!p.is_specialization());
         assert_eq!(p.layer, ProfileLayer::Standalone);
@@ -116,8 +128,12 @@ mod tests {
 
     #[test]
     fn profile_enabling_accumulates() {
-        let p = Profile::new("darwin-developer", ProfileKind::Darwin, ProfileLayer::Foundation)
-            .enabling(&["blackmatter", "akeyless", "zoekt-mcp"]);
+        let p = Profile::new(
+            "darwin-developer",
+            ProfileKind::Darwin,
+            ProfileLayer::Foundation,
+        )
+        .enabling(&["blackmatter", "akeyless", "zoekt-mcp"]);
         assert_eq!(p.enables_components.len(), 3);
     }
 }

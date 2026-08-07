@@ -46,7 +46,15 @@ fn real_nodes_nix_defines_expected_nixos_nodes() {
         }
     }
     // The registry claims these NixOS nodes exist.
-    for expected in ["plo", "zek", "orion", "rai", "wireguard", "cid-k3s", "ryn-k3s"] {
+    for expected in [
+        "plo",
+        "zek",
+        "orion",
+        "rai",
+        "wireguard",
+        "cid-k3s",
+        "ryn-k3s",
+    ] {
         assert!(
             found.contains(&expected.to_string()),
             "lib/nodes.nix does not define {expected:?}; found: {found:?}"
@@ -94,7 +102,10 @@ fn real_darwin_configurations_declare_expected_nodes() {
         }
     }
     for expected in ["cid", "ryn"] {
-        assert!(found.contains(&expected.to_string()), "darwin configs do not include {expected:?}");
+        assert!(
+            found.contains(&expected.to_string()),
+            "darwin configs do not include {expected:?}"
+        );
     }
     let reg = pleme_nix_registry();
     let registered_darwin: std::collections::HashSet<&str> = reg
@@ -161,7 +172,10 @@ fn real_vpn_links_use_slash_24_subnets() {
     let src = read_file("lib/vpn-links.nix").expect("lib/vpn-links.nix should exist");
     let subnet_re = regex::Regex::new(r#"subnet\s*=\s*"10\.100\.\d+\.0/24""#).unwrap();
     let count = subnet_re.find_iter(&src).count();
-    assert!(count >= 3, "expected >= 3 /24 subnets in lib/vpn-links.nix, found {count}");
+    assert!(
+        count >= 3,
+        "expected >= 3 /24 subnets in lib/vpn-links.nix, found {count}"
+    );
 }
 
 // ── profiles ───────────────────────────────────────────────────────────────
@@ -213,7 +227,10 @@ fn real_darwin_modules_imports_zoekt_and_codesearch_atomically() {
     let has_codesearch = src.contains("codesearch.homeManagerModules.default");
     let has_indexing = src.contains("indexing.enable = true");
     assert!(has_zoekt, "darwin configs missing zoekt-mcp HM module");
-    assert!(has_codesearch, "darwin configs missing codesearch HM module");
+    assert!(
+        has_codesearch,
+        "darwin configs missing codesearch HM module"
+    );
     assert!(has_indexing, "darwin configs missing indexing enable");
 }
 

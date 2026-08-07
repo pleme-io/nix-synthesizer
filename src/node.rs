@@ -77,10 +77,7 @@ pub enum NixNode {
         body: Box<NixNode>,
     },
     /// Lambda with simple arg: `arg: body`
-    Lambda {
-        arg: String,
-        body: Box<NixNode>,
-    },
+    Lambda { arg: String, body: Box<NixNode> },
     /// Function application: `f arg`
     Apply {
         func: Box<NixNode>,
@@ -103,9 +100,7 @@ pub enum NixNode {
         right: Box<NixNode>,
     },
     /// String interpolation: `"prefix${expr}suffix"`
-    Interpolation {
-        parts: Vec<StringPart>,
-    },
+    Interpolation { parts: Vec<StringPart> },
 
     // ── Imports ─────────────────────────────────────────────────────
     /// Import expression: `import ./path`
@@ -446,7 +441,10 @@ impl NixNode {
 
             // Literals
             Self::Str(s) => {
-                let escaped = s.replace('\\', "\\\\").replace('"', "\\\"").replace("${", "\\${");
+                let escaped = s
+                    .replace('\\', "\\\\")
+                    .replace('"', "\\\"")
+                    .replace("${", "\\${");
                 format!("{pad}\"{escaped}\"")
             }
             Self::MultilineStr(s) => {
@@ -464,7 +462,11 @@ impl NixNode {
                 let base = expr.emit(0);
                 format!("{pad}{base}.{}", path.join("."))
             }
-            Self::SelectOr { expr, path, default } => {
+            Self::SelectOr {
+                expr,
+                path,
+                default,
+            } => {
                 let base = expr.emit(0);
                 let def = default.emit(0);
                 let path_str = path.join(".");
@@ -540,7 +542,11 @@ impl NixNode {
             }
 
             // Functions
-            Self::Function { args, variadic, body } => {
+            Self::Function {
+                args,
+                variadic,
+                body,
+            } => {
                 let arg_strs: Vec<String> = args
                     .iter()
                     .map(|a| match &a.default {
@@ -574,7 +580,11 @@ impl NixNode {
             }
 
             // Control flow
-            Self::If { cond, then_body, else_body } => {
+            Self::If {
+                cond,
+                then_body,
+                else_body,
+            } => {
                 let c = cond.emit(0);
                 let t = then_body.emit(indent + 1);
                 let e = else_body.emit(indent + 1);
@@ -613,7 +623,11 @@ impl NixNode {
             }
 
             // NixOS module domain nodes
-            Self::MkOption { option_type, default, description } => {
+            Self::MkOption {
+                option_type,
+                default,
+                description,
+            } => {
                 let mut bindings = vec![Binding::new("type", option_type.to_node())];
                 if let Some(d) = default {
                     bindings.push(Binding::new("default", *d.clone()));
@@ -622,10 +636,8 @@ impl NixNode {
                     bindings.push(Binding::new("description", NixNode::Str(desc.clone())));
                 }
                 let inner = NixNode::AttrSet(bindings);
-                let mk = NixNode::apply(
-                    NixNode::select(NixNode::ident("lib"), &["mkOption"]),
-                    inner,
-                );
+                let mk =
+                    NixNode::apply(NixNode::select(NixNode::ident("lib"), &["mkOption"]), inner);
                 mk.emit(indent)
             }
             Self::MkEnableOption(desc) => {
@@ -635,7 +647,11 @@ impl NixNode {
                 );
                 mk.emit(indent)
             }
-            Self::ModuleFile { extra_args, options, config } => {
+            Self::ModuleFile {
+                extra_args,
+                options,
+                config,
+            } => {
                 let mut args = vec![
                     FnArg::required("config"),
                     FnArg::required("lib"),
@@ -670,10 +686,15 @@ impl NixNode {
             }
 
             // Flake domain nodes
-            Self::FlakeFile { description, inputs, outputs } => {
-                let mut top_bindings = vec![
-                    Binding::new("description", NixNode::Str(description.clone())),
-                ];
+            Self::FlakeFile {
+                description,
+                inputs,
+                outputs,
+            } => {
+                let mut top_bindings = vec![Binding::new(
+                    "description",
+                    NixNode::Str(description.clone()),
+                )];
 
                 // inputs
                 let mut input_bindings = Vec::new();
@@ -683,8 +704,12 @@ impl NixNode {
                         let mut follows_bindings = Vec::new();
                         for (name, target) in &input.follows {
                             // nixpkgs.follows = "nixpkgs" (not nixpkgs = "nixpkgs")
-                            follows_bindings.push(Binding::new(name,
-                                NixNode::AttrSet(vec![Binding::new("follows", NixNode::Str(target.clone()))])
+                            follows_bindings.push(Binding::new(
+                                name,
+                                NixNode::AttrSet(vec![Binding::new(
+                                    "follows",
+                                    NixNode::Str(target.clone()),
+                                )]),
                             ));
                         }
                         ib.push(Binding::new("inputs", NixNode::AttrSet(follows_bindings)));
@@ -718,7 +743,12 @@ impl NixNode {
             // so shell uses of `${VAR}` (which are common) must be escaped as
             // `''${VAR}`. We escape that at emit time so callers pass natural
             // shell syntax.
-            Self::WriteShellApp { name, runtime_inputs, text, exclude_shell_checks } => {
+            Self::WriteShellApp {
+                name,
+                runtime_inputs,
+                text,
+                exclude_shell_checks,
+            } => {
                 let inner_pad = "  ".repeat(indent + 1);
                 let inputs_list = if runtime_inputs.is_empty() {
                     "[ ]".to_string()
@@ -803,7 +833,10 @@ fn emit_binding(indent: usize, binding: &Binding) -> String {
     // `inherit` binds without a left-hand side and supplies its own `;`.
     // Dispatching on the value (not on the key) is what makes
     // `Binding::inherit` impossible to desynchronise from its key.
-    if matches!(binding.value, NixNode::Inherit(_) | NixNode::InheritFrom { .. }) {
+    if matches!(
+        binding.value,
+        NixNode::Inherit(_) | NixNode::InheritFrom { .. }
+    ) {
         return format!("{}\n", binding.value.emit(indent));
     }
 
@@ -983,7 +1016,11 @@ mod tests {
 
     #[test]
     fn bin_op_emits_operator() {
-        let node = NixNode::bin_op(NixNode::ident("a"), BinOperator::Update, NixNode::ident("b"));
+        let node = NixNode::bin_op(
+            NixNode::ident("a"),
+            BinOperator::Update,
+            NixNode::ident("b"),
+        );
         assert_eq!(node.emit(0), "a // b");
     }
 
@@ -1042,11 +1079,7 @@ mod tests {
 
     #[test]
     fn if_then_else_emits_branches() {
-        let node = NixNode::if_then_else(
-            NixNode::Bool(true),
-            NixNode::Int(1),
-            NixNode::Int(2),
-        );
+        let node = NixNode::if_then_else(NixNode::Bool(true), NixNode::Int(1), NixNode::Int(2));
         let out = node.emit(0);
         assert!(out.contains("if true then"));
         assert!(out.contains("else"));
@@ -1060,10 +1093,7 @@ mod tests {
 
     #[test]
     fn nested_attrs_build_correctly() {
-        let b = build_nested_attrs(
-            &["a".into(), "b".into(), "c".into()],
-            NixNode::Int(1),
-        );
+        let b = build_nested_attrs(&["a".into(), "b".into(), "c".into()], NixNode::Int(1));
         assert_eq!(b.key, "a");
         // Inner structure is nested AttrSets
         if let NixNode::AttrSet(inner) = &b.value {
@@ -1080,14 +1110,20 @@ mod tests {
         // flake-utils.lib.eachDefaultSystem (system: ...)
         // Without parens: `eachDefaultSystem system: ...` is a syntax error
         let node = NixNode::Apply {
-            func: Box::new(NixNode::select(NixNode::ident("flake-utils"), &["lib", "eachDefaultSystem"])),
+            func: Box::new(NixNode::select(
+                NixNode::ident("flake-utils"),
+                &["lib", "eachDefaultSystem"],
+            )),
             arg: Box::new(NixNode::Lambda {
                 arg: "system".into(),
                 body: Box::new(NixNode::attr_set(vec![("x", NixNode::Int(1))])),
             }),
         };
         let out = node.emit(0);
-        assert!(out.contains("(system:"), "lambda arg must be parenthesized: {out}");
+        assert!(
+            out.contains("(system:"),
+            "lambda arg must be parenthesized: {out}"
+        );
     }
 
     #[test]
@@ -1102,7 +1138,10 @@ mod tests {
             }),
         };
         let out = node.emit(0);
-        assert!(out.contains("({ x }:"), "function arg must be parenthesized: {out}");
+        assert!(
+            out.contains("({ x }:"),
+            "function arg must be parenthesized: {out}"
+        );
     }
 
     #[test]
@@ -1119,11 +1158,21 @@ mod tests {
     fn flake_follows_produces_nested_attr() {
         // substrate.inputs.nixpkgs.follows = "nixpkgs" (NOT nixpkgs = "nixpkgs")
         let flake = crate::builders::FlakeBuilder::new("test")
-            .input_with_follows("substrate", "github:pleme-io/substrate", vec![("nixpkgs", "nixpkgs")])
+            .input_with_follows(
+                "substrate",
+                "github:pleme-io/substrate",
+                vec![("nixpkgs", "nixpkgs")],
+            )
             .outputs(NixNode::ident("{}"))
             .emit();
-        assert!(flake.contains("follows = \"nixpkgs\""), "follows must be nested: {flake}");
-        assert!(!flake.contains("nixpkgs = \"nixpkgs\""), "must NOT be flat string assignment");
+        assert!(
+            flake.contains("follows = \"nixpkgs\""),
+            "follows must be nested: {flake}"
+        );
+        assert!(
+            !flake.contains("nixpkgs = \"nixpkgs\""),
+            "must NOT be flat string assignment"
+        );
     }
 
     #[test]
@@ -1136,7 +1185,10 @@ mod tests {
             )),
         };
         let out = node.emit(0);
-        assert!(out.contains("(let"), "let-in arg must be parenthesized: {out}");
+        assert!(
+            out.contains("(let"),
+            "let-in arg must be parenthesized: {out}"
+        );
     }
 
     // ── WriteShellApp — pkgs.writeShellApplication wrapper ──────────────
@@ -1182,7 +1234,10 @@ mod tests {
             exclude_shell_checks: vec![],
         };
         let out = node.emit(0);
-        assert!(!out.contains("excludeShellChecks"), "expected omitted; got: {out}");
+        assert!(
+            !out.contains("excludeShellChecks"),
+            "expected omitted; got: {out}"
+        );
     }
 
     /// Non-empty `exclude_shell_checks` emits the canonical
@@ -1321,9 +1376,11 @@ mod tests {
         // thing but parse to different trees, so the emitter must not
         // silently pick the other one.
         let inherited = NixNode::AttrSet(vec![Binding::inherit(&["system"])]).emit(0);
-        let assigned =
-            NixNode::AttrSet(vec![Binding::new("system", NixNode::Ident("system".into()))])
-                .emit(0);
+        let assigned = NixNode::AttrSet(vec![Binding::new(
+            "system",
+            NixNode::Ident("system".into()),
+        )])
+        .emit(0);
         assert_ne!(inherited, assigned);
         assert!(!inherited.contains('='));
     }

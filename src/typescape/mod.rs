@@ -153,19 +153,35 @@ impl std::fmt::Display for NixTypescapeSummary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "─────── NixTypescape Summary ───────")?;
         writeln!(f, "  type_hash         : {:#018x}", self.type_hash)?;
-        writeln!(f, "  nodes             : {} ({} darwin, {} nixos)",
-            self.node_count, self.darwin_node_count, self.nixos_node_count)?;
-        writeln!(f, "  profiles          : {} ({} foundations)",
-            self.profile_count, self.foundation_profile_count)?;
-        writeln!(f, "  blackmatter       : {} components", self.blackmatter_component_count)?;
+        writeln!(
+            f,
+            "  nodes             : {} ({} darwin, {} nixos)",
+            self.node_count, self.darwin_node_count, self.nixos_node_count
+        )?;
+        writeln!(
+            f,
+            "  profiles          : {} ({} foundations)",
+            self.profile_count, self.foundation_profile_count
+        )?;
+        writeln!(
+            f,
+            "  blackmatter       : {} components",
+            self.blackmatter_component_count
+        )?;
         writeln!(f, "  vpn links         : {}", self.vpn_link_count)?;
         writeln!(f, "  clusters          : {}", self.cluster_count)?;
-        writeln!(f, "  flake inputs      : {} ({} pleme-owned)",
-            self.flake_input_count, self.pleme_flake_input_count)?;
+        writeln!(
+            f,
+            "  flake inputs      : {} ({} pleme-owned)",
+            self.flake_input_count, self.pleme_flake_input_count
+        )?;
         writeln!(f, "  substrate builders: {}", self.substrate_builder_count)?;
         writeln!(f, "  secrets           : {} paths", self.secret_path_count)?;
-        writeln!(f, "  invariants        : {} declared, {} violations",
-            self.invariants_total, self.violations_count)?;
+        writeln!(
+            f,
+            "  invariants        : {} declared, {} violations",
+            self.invariants_total, self.violations_count
+        )?;
         writeln!(f, "  consistent        : {}", self.is_consistent)
     }
 }

@@ -1,5 +1,5 @@
-use nix_synthesizer::iac_bridge::iac_type_to_nix;
 use nix_synthesizer::NixType;
+use nix_synthesizer::iac_bridge::iac_type_to_nix;
 
 // ── Totality: every IacType variant is handled ──────────────────────
 

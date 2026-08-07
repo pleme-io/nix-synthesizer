@@ -116,7 +116,11 @@ impl NixType {
                 format!("types.oneOf [ {} ]", parts.join(" "))
             }
             Self::Either(a, b) => {
-                format!("types.either {} {}", wrap_complex(&a.emit()), wrap_complex(&b.emit()))
+                format!(
+                    "types.either {} {}",
+                    wrap_complex(&a.emit()),
+                    wrap_complex(&b.emit())
+                )
             }
             Self::Submodule(options) => {
                 if options.is_empty() {
@@ -196,7 +200,10 @@ mod tests {
 
     #[test]
     fn list_of_wraps_inner() {
-        assert_eq!(NixType::list_of(NixType::Str).emit(), "types.listOf types.str");
+        assert_eq!(
+            NixType::list_of(NixType::Str).emit(),
+            "types.listOf types.str"
+        );
     }
 
     #[test]
@@ -207,7 +214,10 @@ mod tests {
 
     #[test]
     fn attrs_of_wraps_inner() {
-        assert_eq!(NixType::attrs_of(NixType::Str).emit(), "types.attrsOf types.str");
+        assert_eq!(
+            NixType::attrs_of(NixType::Str).emit(),
+            "types.attrsOf types.str"
+        );
     }
 
     #[test]
@@ -218,7 +228,10 @@ mod tests {
 
     #[test]
     fn null_or_wraps_inner() {
-        assert_eq!(NixType::null_or(NixType::Str).emit(), "types.nullOr types.str");
+        assert_eq!(
+            NixType::null_or(NixType::Str).emit(),
+            "types.nullOr types.str"
+        );
     }
 
     #[test]
@@ -271,5 +284,4 @@ mod tests {
         assert!(out.contains("types.int"));
         assert!(out.contains("8080"));
     }
-
 }

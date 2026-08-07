@@ -60,10 +60,7 @@ fn law_determinism_holds_on_attr_set() {
 
 #[test]
 fn law_honors_indent_unit_on_attr_set() {
-    let n = NixNode::attr_set(vec![
-        ("alpha", NixNode::Int(1)),
-        ("beta", NixNode::Int(2)),
-    ]);
+    let n = NixNode::attr_set(vec![("alpha", NixNode::Int(1)), ("beta", NixNode::Int(2))]);
     assert!(laws::honors_indent_unit(&n, 0));
     assert!(laws::honors_indent_unit(&n, 3));
 }

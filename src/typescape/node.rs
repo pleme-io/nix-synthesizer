@@ -43,7 +43,10 @@ pub enum NodeRole {
 impl NodeRole {
     #[must_use]
     pub fn is_k3s(self) -> bool {
-        matches!(self, Self::K3sServer | Self::K3sAgent | Self::K3sVm | Self::K3sCloudServer)
+        matches!(
+            self,
+            Self::K3sServer | Self::K3sAgent | Self::K3sVm | Self::K3sCloudServer
+        )
     }
 
     #[must_use]
@@ -124,7 +127,13 @@ mod tests {
 
     #[test]
     fn darwin_nodes_are_darwin_and_aarch64() {
-        let n = Node::new("cid", "cid.local", Target::AARCH64_DARWIN, NodeRole::DarwinWorkstation, "drzzln");
+        let n = Node::new(
+            "cid",
+            "cid.local",
+            Target::AARCH64_DARWIN,
+            NodeRole::DarwinWorkstation,
+            "drzzln",
+        );
         assert!(n.is_darwin());
         assert!(!n.is_nixos());
         assert!(n.is_aarch64());
@@ -145,9 +154,15 @@ mod tests {
 
     #[test]
     fn node_builder_accumulates() {
-        let n = Node::new("plo", "plo.quero.lan", Target::X86_64_LINUX, NodeRole::K3sServer, "root")
-            .with_tags(&["production", "k3s", "server"])
-            .with_profiles(&["nixos-pleme-base", "nixos-k3s-server"]);
+        let n = Node::new(
+            "plo",
+            "plo.quero.lan",
+            Target::X86_64_LINUX,
+            NodeRole::K3sServer,
+            "root",
+        )
+        .with_tags(&["production", "k3s", "server"])
+        .with_profiles(&["nixos-pleme-base", "nixos-k3s-server"]);
         assert_eq!(n.tags.len(), 3);
         assert_eq!(n.profiles.len(), 2);
         assert_eq!(n.short_name, "plo");

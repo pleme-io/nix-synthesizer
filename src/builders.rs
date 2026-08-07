@@ -39,12 +39,7 @@ impl FlakeBuilder {
     }
 
     #[must_use]
-    pub fn input_with_follows(
-        mut self,
-        name: &str,
-        url: &str,
-        follows: Vec<(&str, &str)>,
-    ) -> Self {
+    pub fn input_with_follows(mut self, name: &str, url: &str, follows: Vec<(&str, &str)>) -> Self {
         self.inputs.push(FlakeInputDef {
             name: name.to_string(),
             url: url.to_string(),
@@ -204,7 +199,10 @@ impl ModuleBuilder {
                 body_bindings.push(Binding::new("options", NixNode::AttrSet(opt_bindings)));
             }
             if !self.config.is_empty() {
-                body_bindings.push(Binding::new("config", NixNode::AttrSet(self.config.clone())));
+                body_bindings.push(Binding::new(
+                    "config",
+                    NixNode::AttrSet(self.config.clone()),
+                ));
             }
 
             let body_set = NixNode::AttrSet(body_bindings);
@@ -384,10 +382,7 @@ impl SubstrateBuilder {
         // The actual outputs expression depends on the builder pattern
         // Most substrate builders return per-system outputs
         let builder_call = NixNode::apply(
-            NixNode::select(
-                NixNode::ident("substrate"),
-                &["lib", &self.builder_name],
-            ),
+            NixNode::select(NixNode::ident("substrate"), &["lib", &self.builder_name]),
             NixNode::AttrSet(builder_bindings),
         );
 

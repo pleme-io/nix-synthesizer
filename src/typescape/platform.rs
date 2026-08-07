@@ -48,10 +48,22 @@ pub struct Target {
 }
 
 impl Target {
-    pub const AARCH64_DARWIN: Self = Self { arch: Architecture::Aarch64, platform: Platform::Darwin };
-    pub const X86_64_DARWIN: Self = Self { arch: Architecture::X86_64, platform: Platform::Darwin };
-    pub const X86_64_LINUX: Self = Self { arch: Architecture::X86_64, platform: Platform::Linux };
-    pub const AARCH64_LINUX: Self = Self { arch: Architecture::Aarch64, platform: Platform::Linux };
+    pub const AARCH64_DARWIN: Self = Self {
+        arch: Architecture::Aarch64,
+        platform: Platform::Darwin,
+    };
+    pub const X86_64_DARWIN: Self = Self {
+        arch: Architecture::X86_64,
+        platform: Platform::Darwin,
+    };
+    pub const X86_64_LINUX: Self = Self {
+        arch: Architecture::X86_64,
+        platform: Platform::Linux,
+    };
+    pub const AARCH64_LINUX: Self = Self {
+        arch: Architecture::Aarch64,
+        platform: Platform::Linux,
+    };
 
     #[must_use]
     pub fn as_nix_system(self) -> String {
@@ -60,7 +72,12 @@ impl Target {
 
     #[must_use]
     pub fn all_canonical() -> [Self; 4] {
-        [Self::AARCH64_DARWIN, Self::X86_64_DARWIN, Self::X86_64_LINUX, Self::AARCH64_LINUX]
+        [
+            Self::AARCH64_DARWIN,
+            Self::X86_64_DARWIN,
+            Self::X86_64_LINUX,
+            Self::AARCH64_LINUX,
+        ]
     }
 }
 
@@ -163,7 +180,9 @@ impl IpV4Address {
             return Err(CidrError::InvalidAddress(s.to_string()));
         }
         for (i, p) in parts.iter().enumerate() {
-            octets[i] = p.parse().map_err(|_| CidrError::InvalidAddress(s.to_string()))?;
+            octets[i] = p
+                .parse()
+                .map_err(|_| CidrError::InvalidAddress(s.to_string()))?;
         }
         Ok(Self(octets))
     }
@@ -193,16 +212,25 @@ impl IpV4Cidr {
         let (a, p) = s
             .split_once('/')
             .ok_or_else(|| CidrError::InvalidFormat(s.to_string()))?;
-        let prefix: u8 = p.parse().map_err(|_| CidrError::InvalidPrefix(p.to_string()))?;
+        let prefix: u8 = p
+            .parse()
+            .map_err(|_| CidrError::InvalidPrefix(p.to_string()))?;
         if prefix > 32 {
             return Err(CidrError::InvalidPrefix(p.to_string()));
         }
         let addr = IpV4Address::parse(a)?;
         // Mask off host bits to normalize.
-        let mask = if prefix == 0 { 0 } else { !0u32 << (32 - prefix) };
+        let mask = if prefix == 0 {
+            0
+        } else {
+            !0u32 << (32 - prefix)
+        };
         let base = addr.as_u32() & mask;
         let normalized = IpV4Address(base.to_be_bytes());
-        Ok(Self { addr: normalized, prefix })
+        Ok(Self {
+            addr: normalized,
+            prefix,
+        })
     }
 
     #[must_use]
@@ -218,7 +246,11 @@ impl IpV4Cidr {
     /// Highest address in the block (the broadcast address for /24 etc).
     #[must_use]
     pub fn broadcast(self) -> IpV4Address {
-        let mask = if self.prefix == 0 { 0 } else { !0u32 << (32 - self.prefix) };
+        let mask = if self.prefix == 0 {
+            0
+        } else {
+            !0u32 << (32 - self.prefix)
+        };
         let high = self.addr.as_u32() | !mask;
         IpV4Address(high.to_be_bytes())
     }
@@ -376,7 +408,10 @@ mod tests {
 
     #[test]
     fn hostname_rejects_uppercase() {
-        assert!(matches!(Hostname::new("PLO"), Err(HostnameError::InvalidChar(_))));
+        assert!(matches!(
+            Hostname::new("PLO"),
+            Err(HostnameError::InvalidChar(_))
+        ));
     }
 
     #[test]
@@ -386,7 +421,10 @@ mod tests {
 
     #[test]
     fn hostname_rejects_leading_hyphen() {
-        assert!(matches!(Hostname::new("-bad"), Err(HostnameError::InvalidChar(_))));
+        assert!(matches!(
+            Hostname::new("-bad"),
+            Err(HostnameError::InvalidChar(_))
+        ));
     }
 
     #[test]
@@ -446,7 +484,10 @@ mod tests {
 
     #[test]
     fn wg_interface_rejects_no_prefix() {
-        assert_eq!(WireguardInterface::new("ryn-k3s"), Err(WireguardError::MissingPrefix));
+        assert_eq!(
+            WireguardInterface::new("ryn-k3s"),
+            Err(WireguardError::MissingPrefix)
+        );
     }
 
     #[test]
@@ -454,7 +495,10 @@ mod tests {
         // 16 chars
         let n = "wg-0123456789012";
         assert_eq!(n.len(), 16);
-        assert!(matches!(WireguardInterface::new(n), Err(WireguardError::TooLong(_))));
+        assert!(matches!(
+            WireguardInterface::new(n),
+            Err(WireguardError::TooLong(_))
+        ));
     }
 
     #[test]

@@ -128,7 +128,10 @@ fn compound_types_get_parenthesized() {
 #[test]
 fn simple_types_no_parens() {
     let ty = NixType::list_of(NixType::Str);
-    assert!(!ty.emit().contains('('), "simple inner types should not have parens");
+    assert!(
+        !ty.emit().contains('('),
+        "simple inner types should not have parens"
+    );
 }
 
 // ── Enum type ───────────────────────���───────────────────────────────

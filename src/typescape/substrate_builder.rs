@@ -170,7 +170,9 @@ mod tests {
 
     #[test]
     fn rust_library_has_no_target_count() {
-        let b = SubstrateBuilder::RustLibrary { crate_name: "irodori".to_string() };
+        let b = SubstrateBuilder::RustLibrary {
+            crate_name: "irodori".to_string(),
+        };
         assert_eq!(b.target_count(), None);
     }
 
@@ -185,9 +187,19 @@ mod tests {
 
     #[test]
     fn go_builders_have_distinct_kinds() {
-        let t = SubstrateBuilder::GoTool { pname: "kubectl".to_string(), has_version_ldflags: true, completions: true };
-        let s = SubstrateBuilder::GoMonorepoSource { owner: "kubernetes".to_string(), repo: "kubernetes".to_string() };
-        let b = SubstrateBuilder::GoMonorepoBinary { pname: "kubectl".to_string(), sub_packages: vec!["cmd/kubectl".to_string()] };
+        let t = SubstrateBuilder::GoTool {
+            pname: "kubectl".to_string(),
+            has_version_ldflags: true,
+            completions: true,
+        };
+        let s = SubstrateBuilder::GoMonorepoSource {
+            owner: "kubernetes".to_string(),
+            repo: "kubernetes".to_string(),
+        };
+        let b = SubstrateBuilder::GoMonorepoBinary {
+            pname: "kubectl".to_string(),
+            sub_packages: vec!["cmd/kubectl".to_string()],
+        };
         assert_ne!(t.kind(), s.kind());
         assert_ne!(s.kind(), b.kind());
     }

@@ -1,5 +1,5 @@
-use nix_synthesizer::*;
 use nix_synthesizer::builders::*;
+use nix_synthesizer::*;
 
 // ── Determinism: same AST → byte-identical output ───────────────────
 
@@ -8,10 +8,7 @@ fn emit_file_deterministic() {
     let nodes = vec![
         NixNode::Comment("test".into()),
         NixNode::Blank,
-        NixNode::attr_set(vec![
-            ("x", NixNode::Int(1)),
-            ("y", NixNode::str("hello")),
-        ]),
+        NixNode::attr_set(vec![("x", NixNode::Int(1)), ("y", NixNode::str("hello"))]),
     ];
     let a = emit_file(&nodes);
     let b = emit_file(&nodes);
@@ -145,16 +142,21 @@ fn two_space_indentation() {
     for line in out.lines() {
         if line.starts_with(' ') {
             let spaces = line.len() - line.trim_start().len();
-            assert_eq!(spaces % 2, 0, "indentation must be multiples of 2: '{line}'");
+            assert_eq!(
+                spaces % 2,
+                0,
+                "indentation must be multiples of 2: '{line}'"
+            );
         }
     }
 }
 
 #[test]
 fn nested_indentation_increases() {
-    let node = NixNode::attr_set(vec![
-        ("outer", NixNode::attr_set(vec![("inner", NixNode::Int(1))])),
-    ]);
+    let node = NixNode::attr_set(vec![(
+        "outer",
+        NixNode::attr_set(vec![("inner", NixNode::Int(1))]),
+    )]);
     let out = node.emit(0);
     let lines: Vec<&str> = out.lines().collect();
     // Find the line with "inner"
@@ -232,9 +234,7 @@ fn module_options_under_options_key() {
 
 #[test]
 fn module_config_under_config_key() {
-    let out = ModuleBuilder::new()
-        .config("x", NixNode::Bool(true))
-        .emit();
+    let out = ModuleBuilder::new().config("x", NixNode::Bool(true)).emit();
     assert!(out.contains("config"), "module must have 'config' key");
 }
 

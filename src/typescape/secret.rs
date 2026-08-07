@@ -144,22 +144,34 @@ mod tests {
 
     #[test]
     fn rejects_too_shallow() {
-        assert_eq!(SecretPath::new("github"), Err(SecretPathError::TooShallow(1)));
+        assert_eq!(
+            SecretPath::new("github"),
+            Err(SecretPathError::TooShallow(1))
+        );
     }
 
     #[test]
     fn rejects_too_deep() {
-        assert_eq!(SecretPath::new("a/b/c/d/e/f"), Err(SecretPathError::TooDeep(6)));
+        assert_eq!(
+            SecretPath::new("a/b/c/d/e/f"),
+            Err(SecretPathError::TooDeep(6))
+        );
     }
 
     #[test]
     fn rejects_uppercase() {
-        assert!(matches!(SecretPath::new("GitHub/Token"), Err(SecretPathError::InvalidChar(_))));
+        assert!(matches!(
+            SecretPath::new("GitHub/Token"),
+            Err(SecretPathError::InvalidChar(_))
+        ));
     }
 
     #[test]
     fn rejects_empty_component() {
-        assert_eq!(SecretPath::new("a//b"), Err(SecretPathError::EmptyComponent));
+        assert_eq!(
+            SecretPath::new("a//b"),
+            Err(SecretPathError::EmptyComponent)
+        );
     }
 
     #[test]

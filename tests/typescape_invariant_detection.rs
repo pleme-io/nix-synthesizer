@@ -7,6 +7,7 @@
 //! (always returning empty) would silently pass the canonical check.
 
 use nix_synthesizer::typescape::{
+    NixTypescape,
     blackmatter::{BlackmatterComponent, ComponentRole},
     cluster::{Cluster, FluxAuth, K3sRole},
     flake::{FlakeInput, FlakeInputUrl, InputOrigin},
@@ -18,7 +19,6 @@ use nix_synthesizer::typescape::{
     secret::SecretPath,
     substrate_builder::SubstrateBuilder,
     vpn::{SideName, VpnLink, VpnProfile, VpnSide},
-    NixTypescape,
 };
 
 // Helper: clone the canonical registry so negative tests start from a
@@ -36,7 +36,12 @@ fn has_violation(violations: &[Violation], id: &str) -> bool {
 #[test]
 fn detects_duplicate_hostname() {
     let mut t = base();
-    let plo = t.nodes.iter().find(|n| n.short_name == "plo").cloned().unwrap();
+    let plo = t
+        .nodes
+        .iter()
+        .find(|n| n.short_name == "plo")
+        .cloned()
+        .unwrap();
     let mut dup = plo.clone();
     dup.short_name = "plo-alias".into();
     t.nodes.push(dup);
@@ -47,7 +52,12 @@ fn detects_duplicate_hostname() {
 #[test]
 fn detects_duplicate_short_name() {
     let mut t = base();
-    let plo = t.nodes.iter().find(|n| n.short_name == "plo").cloned().unwrap();
+    let plo = t
+        .nodes
+        .iter()
+        .find(|n| n.short_name == "plo")
+        .cloned()
+        .unwrap();
     t.nodes.push(plo);
     let v = invariants::node_short_names_unique(&t);
     assert!(!v.is_empty());
@@ -57,7 +67,13 @@ fn detects_duplicate_short_name() {
 fn detects_darwin_node_not_aarch64() {
     let mut t = base();
     // Force a darwin node to x86_64 → should fail.
-    t.nodes.push(Node::new("old-mac", "old.local", Target::X86_64_DARWIN, NodeRole::DarwinWorkstation, "drzzln"));
+    t.nodes.push(Node::new(
+        "old-mac",
+        "old.local",
+        Target::X86_64_DARWIN,
+        NodeRole::DarwinWorkstation,
+        "drzzln",
+    ));
     let v = invariants::darwin_nodes_use_aarch64(&t);
     assert!(!v.is_empty());
 }
@@ -65,7 +81,13 @@ fn detects_darwin_node_not_aarch64() {
 #[test]
 fn detects_k3s_vm_without_managing_node() {
     let mut t = base();
-    t.nodes.push(Node::new("wild-vm", "192.168.99.1", Target::AARCH64_LINUX, NodeRole::K3sVm, "root"));
+    t.nodes.push(Node::new(
+        "wild-vm",
+        "192.168.99.1",
+        Target::AARCH64_LINUX,
+        NodeRole::K3sVm,
+        "root",
+    ));
     let v = invariants::k3s_vm_nodes_have_managing_node(&t);
     assert!(!v.is_empty());
 }
@@ -75,8 +97,14 @@ fn detects_k3s_vm_target_coherence_violation() {
     let mut t = base();
     // K3s VM forced to x86_64-linux instead of aarch64-linux.
     t.nodes.push(
-        Node::new("bad-vm", "10.0.0.99", Target::X86_64_LINUX, NodeRole::K3sVm, "root")
-            .with_managing_node("cid"),
+        Node::new(
+            "bad-vm",
+            "10.0.0.99",
+            Target::X86_64_LINUX,
+            NodeRole::K3sVm,
+            "root",
+        )
+        .with_managing_node("cid"),
     );
     let v = invariants::node_target_coherence(&t);
     assert!(!v.is_empty());
@@ -87,7 +115,11 @@ fn detects_k3s_vm_target_coherence_violation() {
 #[test]
 fn detects_duplicate_profile_name() {
     let mut t = base();
-    t.profiles.push(Profile::new("nixos-pleme-base", ProfileKind::NixOs, ProfileLayer::Foundation));
+    t.profiles.push(Profile::new(
+        "nixos-pleme-base",
+        ProfileKind::NixOs,
+        ProfileLayer::Foundation,
+    ));
     let v = invariants::profile_names_unique(&t);
     assert!(!v.is_empty());
 }
@@ -95,7 +127,11 @@ fn detects_duplicate_profile_name() {
 #[test]
 fn detects_specialization_without_foundation() {
     let mut t = base();
-    t.profiles.push(Profile::new("rogue-spec", ProfileKind::NixOs, ProfileLayer::Specialization));
+    t.profiles.push(Profile::new(
+        "rogue-spec",
+        ProfileKind::NixOs,
+        ProfileLayer::Specialization,
+    ));
     let v = invariants::specialization_has_foundation(&t);
     assert!(!v.is_empty());
 }
@@ -104,8 +140,12 @@ fn detects_specialization_without_foundation() {
 fn detects_specialization_referencing_missing_foundation() {
     let mut t = base();
     t.profiles.push(
-        Profile::new("rogue-spec", ProfileKind::NixOs, ProfileLayer::Specialization)
-            .requiring("does-not-exist"),
+        Profile::new(
+            "rogue-spec",
+            ProfileKind::NixOs,
+            ProfileLayer::Specialization,
+        )
+        .requiring("does-not-exist"),
     );
     let v = invariants::specialization_foundation_exists(&t);
     assert!(!v.is_empty());
@@ -115,7 +155,8 @@ fn detects_specialization_referencing_missing_foundation() {
 fn detects_missing_foundation_for_platform() {
     let mut t = base();
     // Remove all darwin foundations.
-    t.profiles.retain(|p| !(p.is_foundation() && p.kind == ProfileKind::Darwin));
+    t.profiles
+        .retain(|p| !(p.is_foundation() && p.kind == ProfileKind::Darwin));
     let v = invariants::foundation_profile_per_platform_exists(&t);
     assert!(!v.is_empty());
 }
@@ -149,7 +190,8 @@ fn detects_duplicate_blackmatter_repo() {
 #[test]
 fn detects_missing_aggregator() {
     let mut t = base();
-    t.blackmatter_components.retain(|c| c.role != ComponentRole::Aggregator);
+    t.blackmatter_components
+        .retain(|c| c.role != ComponentRole::Aggregator);
     let v = invariants::blackmatter_aggregator_unique(&t);
     assert!(!v.is_empty());
 }
@@ -157,9 +199,11 @@ fn detects_missing_aggregator() {
 #[test]
 fn detects_double_aggregator() {
     let mut t = base();
-    t.blackmatter_components.push(
-        BlackmatterComponent::new("extra-aggregator", "bm-dup", ComponentRole::Aggregator),
-    );
+    t.blackmatter_components.push(BlackmatterComponent::new(
+        "extra-aggregator",
+        "bm-dup",
+        ComponentRole::Aggregator,
+    ));
     let v = invariants::blackmatter_aggregator_unique(&t);
     assert!(!v.is_empty());
 }
@@ -194,7 +238,8 @@ fn bad_link(name: &str, subnet: &str, iface: &str, a_node: &str, b_node: &str) -
 #[test]
 fn detects_duplicate_vpn_link_name() {
     let mut t = base();
-    t.vpn_links.push(bad_link("ryn-k3s", "10.200.0.0/24", "wg-dup", "ryn", "x"));
+    t.vpn_links
+        .push(bad_link("ryn-k3s", "10.200.0.0/24", "wg-dup", "ryn", "x"));
     let v = invariants::vpn_link_names_unique(&t);
     assert!(!v.is_empty());
 }
@@ -202,7 +247,8 @@ fn detects_duplicate_vpn_link_name() {
 #[test]
 fn detects_duplicate_vpn_interface_name() {
     let mut t = base();
-    t.vpn_links.push(bad_link("fresh", "10.200.0.0/24", "wg-ryn-k3s", "ryn", "x"));
+    t.vpn_links
+        .push(bad_link("fresh", "10.200.0.0/24", "wg-ryn-k3s", "ryn", "x"));
     let v = invariants::vpn_interface_names_unique(&t);
     assert!(!v.is_empty());
 }
@@ -221,7 +267,8 @@ fn detects_identical_vpn_sides() {
 fn detects_vpn_addresses_outside_subnet() {
     let mut t = base();
     let mut link = bad_link("wrong-subnet", "10.250.0.0/24", "wg-bad-sub", "ryn", "x");
-    link.side_a.address = nix_synthesizer::typescape::platform::IpV4Address::parse("10.1.1.1").unwrap();
+    link.side_a.address =
+        nix_synthesizer::typescape::platform::IpV4Address::parse("10.1.1.1").unwrap();
     t.vpn_links.push(link);
     let v = invariants::vpn_addresses_in_subnet(&t);
     assert!(!v.is_empty());
@@ -231,7 +278,8 @@ fn detects_vpn_addresses_outside_subnet() {
 fn detects_overlapping_vpn_subnets() {
     let mut t = base();
     // Overlaps with ryn-k3s (10.100.1.0/24).
-    t.vpn_links.push(bad_link("overlap", "10.100.1.0/25", "wg-over", "ryn", "x"));
+    t.vpn_links
+        .push(bad_link("overlap", "10.100.1.0/25", "wg-over", "ryn", "x"));
     let v = invariants::vpn_subnets_non_overlapping(&t);
     assert!(!v.is_empty());
 }
@@ -269,7 +317,13 @@ fn detects_psk_on_responder() {
 #[test]
 fn detects_vpn_initiator_missing_from_registry() {
     let mut t = base();
-    t.vpn_links.push(bad_link("phantom", "10.200.0.0/24", "wg-phant", "ghost-node", "x"));
+    t.vpn_links.push(bad_link(
+        "phantom",
+        "10.200.0.0/24",
+        "wg-phant",
+        "ghost-node",
+        "x",
+    ));
     let v = invariants::vpn_local_node_exists(&t);
     assert!(!v.is_empty());
 }
@@ -300,7 +354,7 @@ fn detects_internet_link_without_keepalive() {
         profile: VpnProfile::K8sControlPlane,
         interface: WireguardInterface::new("wg-nk").unwrap(),
         subnet: IpV4Cidr::parse("10.200.0.0/24").unwrap(),
-        mtu: 1380, // internet-sized MTU
+        mtu: 1380,                  // internet-sized MTU
         persistent_keepalive: None, // missing!
         side_a: VpnSide::initiator("ryn", "10.200.0.1", "x"),
         side_b: VpnSide::responder("y", "10.200.0.2", 51900, "a:51900", "p"),
@@ -333,7 +387,8 @@ fn detects_duplicate_cluster_name() {
 #[test]
 fn detects_cluster_referencing_missing_node() {
     let mut t = base();
-    t.clusters.push(Cluster::new("ghost-cluster", "ghost-node", K3sRole::Server));
+    t.clusters
+        .push(Cluster::new("ghost-cluster", "ghost-node", K3sRole::Server));
     let v = invariants::cluster_node_exists(&t);
     assert!(!v.is_empty());
 }
@@ -351,8 +406,7 @@ fn detects_cluster_with_non_default_kubeconfig() {
 #[test]
 fn detects_cluster_referencing_missing_vpn_link() {
     let mut t = base();
-    let c = Cluster::new("orphan-vpn", "plo", K3sRole::Server)
-        .with_vpn_links(&["missing-link"]);
+    let c = Cluster::new("orphan-vpn", "plo", K3sRole::Server).with_vpn_links(&["missing-link"]);
     t.clusters.push(c);
     let v = invariants::cluster_vpn_link_exists(&t);
     assert!(!v.is_empty());
@@ -365,7 +419,11 @@ fn detects_duplicate_flake_input() {
     let mut t = base();
     t.flake_inputs.push(FlakeInput::new(
         "nixpkgs",
-        FlakeInputUrl::GitHub { org: "x".into(), repo: "y".into(), branch: None },
+        FlakeInputUrl::GitHub {
+            org: "x".into(),
+            repo: "y".into(),
+            branch: None,
+        },
         InputOrigin::NixCommunity,
     ));
     let v = invariants::flake_input_names_unique(&t);
@@ -397,11 +455,12 @@ fn detects_missing_nixpkgs_input() {
 #[test]
 fn detects_rust_tool_release_with_wrong_target_count() {
     let mut t = base();
-    t.substrate_builders.push(SubstrateBuilder::RustToolRelease {
-        tool_name: "short-release".into(),
-        targets: vec![Target::AARCH64_DARWIN], // 1 target instead of 4
-        has_hm_module: true,
-    });
+    t.substrate_builders
+        .push(SubstrateBuilder::RustToolRelease {
+            tool_name: "short-release".into(),
+            targets: vec![Target::AARCH64_DARWIN], // 1 target instead of 4
+            has_hm_module: true,
+        });
     let v = invariants::substrate_rust_release_has_four_targets(&t);
     assert!(!v.is_empty());
 }
@@ -409,7 +468,9 @@ fn detects_rust_tool_release_with_wrong_target_count() {
 #[test]
 fn detects_duplicate_substrate_builder_per_kind() {
     let mut t = base();
-    t.substrate_builders.push(SubstrateBuilder::RustLibrary { crate_name: "irodori".into() });
+    t.substrate_builders.push(SubstrateBuilder::RustLibrary {
+        crate_name: "irodori".into(),
+    });
     let v = invariants::substrate_builder_names_unique_per_kind(&t);
     assert!(!v.is_empty());
 }
@@ -463,7 +524,8 @@ fn detects_secret_referencing_missing_node() {
 #[test]
 fn shared_node_secrets_are_allowed() {
     let mut t = base();
-    t.secrets.push(("shared".into(), SecretPath::new("fleet/token").unwrap()));
+    t.secrets
+        .push(("shared".into(), SecretPath::new("fleet/token").unwrap()));
     let v = invariants::secret_node_reference_exists_or_is_shared(&t);
     assert!(v.is_empty());
 }
